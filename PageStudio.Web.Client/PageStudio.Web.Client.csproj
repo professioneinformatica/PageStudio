@@ -10,16 +10,13 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="9.0.8"/>
+        <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="4.12.1" />
         <PackageReference Include="SkiaSharp" Version="3.119.1"/>
         <PackageReference Include="SkiaSharp.Views.Blazor" Version="3.119.1"/>
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="../PageStudio.Core/PageStudio.Core.csproj"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Folder Include="wwwroot\"/>
     </ItemGroup>
 
 </Project>

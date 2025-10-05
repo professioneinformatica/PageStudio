@@ -8,6 +8,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PageStudio.Web", "PageStudi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PageStudio.Web.Client", "PageStudio.Web.Client\PageStudio.Web.Client.csproj", "{8FCDC8DF-47CF-4A89-A82C-65056FAB23FA}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionFiles", "SolutionFiles", "{AEA14BEE-4BCD-4D7C-978C-4FCA61BE4D83}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+		IMPLEMENTATION_GUIDE.md = IMPLEMENTATION_GUIDE.md
+		LICENSE = LICENSE
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

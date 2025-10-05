@@ -1,9 +1,7 @@
 @page "/document-renderer"
 @using SkiaSharp.Views.Blazor
-@using PageStudio.Core.Models
-@using PageStudio.Core.Models.ContainerPageElements
-@inject IJSRuntime JSRuntime
-
+@using Microsoft.FluentUI.AspNetCore.Components
+@using PageStudio.Web.Client.Components
 
 <PageTitle>Document Renderer</PageTitle>
 
@@ -31,12 +29,12 @@
                     <div class="mb-3">
                         <h6>Current Document: @currentDocument.Name</h6>
                         <p><small class="text-muted">Pages: @currentDocument.Pages.Count()</small></p>
-                        <p><small
-                                class="text-muted">Created: @currentDocument.CreatedAt.ToString("yyyy-MM-dd HH:mm")</small>
+                        <p><small class="text-muted">Created: @currentDocument.CreatedAt.ToString("yyyy-MM-dd HH:mm")</small>
                         </p>
-                        <p><small
-                                class="text-muted">Modified: @currentDocument.ModifiedAt.ToString("yyyy-MM-dd HH:mm")</small>
+                        <p><small class="text-muted">Modified: @currentDocument.ModifiedAt.ToString("yyyy-MM-dd HH:mm")</small>
                         </p>
+                        <p><small class="text-muted">Pan Offset: X = @panOffsetX.ToString("F0"), Y = @panOffsetY.ToString("F0")</small></p>
+                        <p><strong>Pagina selezionata:</strong> @(selectedPage != null ? selectedPage.Name : "-")</p>
                     </div>
 
                     <div class="mb-3">
@@ -54,11 +52,23 @@
                         </div>
                     }
                 }
+
+                <div class="mb-3">
+                    <h6>Struttura documento</h6>
+
+                    
+                    <FluentTreeView Items="@documentTree" SelectedItem="@selectedTreeNode" SelectedItemChanged="OnTreeNodeSelected">
+                        
+                        <ItemTemplate Context="node">
+                            <span>@node.Text</span>
+                        </ItemTemplate>
+                    </FluentTreeView>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="col-md-6">
+    <div class="col-md-9">
         @if (currentDocument != null && isRendered)
         {
             <!-- Document Toolbar -->
@@ -99,12 +109,33 @@
                                 </div>
                             </div>
 
+                            <!-- Interaction Mode Controls -->
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="text-muted small">Modalità:</span>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button class="btn @(interactionMode == InteractionMode.Selection ? "btn-primary" : "btn-outline-primary") btn-sm"
+                                            @onclick="SetSelectionMode" title="Seleziona oggetti">
+                                        <i class="bi bi-cursor"></i>
+                                    </button>
+                                    <button class="btn @(interactionMode == InteractionMode.Pan ? "btn-primary" : "btn-outline-primary") btn-sm"
+                                            @onclick="SetPanMode" title="Pan (trascina canvas)">
+                                        <i class="bi bi-arrows-move"></i>
+                                    </button>
+                                </div>
+                            </div>
+
                             <!-- Text Tool Controls -->
                             <div class="d-flex align-items-center gap-2">
                                 <span class="text-muted small">Tools:</span>
                                 <button class="btn btn-outline-success btn-sm" @onclick="ShowAddTextModal" title="Add Text">
                                     <i class="bi bi-type"></i> Add Text
                                 </button>
+                                <button class="btn btn-outline-success btn-sm" id="add-image-button" title="Add Image">
+                                    <i class="bi bi-image"></i> Add Image
+                                </button>
+                                <FluentInputFile DragDropZoneVisible="false" Multiple="false" Accept="image/*" 
+                                                 AnchorId="add-image-button" Mode="InputFileMode.Stream" OnFileUploaded="OnFluentImageSelected">
+                                </FluentInputFile>
                             </div>
                         </div>
                     </div>
@@ -121,8 +152,14 @@
                 {
                     <SKCanvasView @ref="canvasView"
                                   OnPaintSurface="OnPaintSurface"
-                                  @onpointerdown="OnCanvasClick"
-                                  style="width: 100%; height: 100%; cursor: pointer;"/>
+                                  @onpointerdown="OnPointerDown"
+                                  @onpointermove="OnPointerMove"
+                                  @onpointerup="OnPointerUp"
+                                  @onpointerleave="OnPointerLeave"
+                                  @onwheel="OnWheel"
+                                  @onpointercancel="OnPointerUp"
+                                  @onpointerout="OnPointerLeave"
+                                  style="@CanvasStyleAttribute"/>
                 }
                 else if (currentDocument != null)
                 {
@@ -139,115 +176,12 @@
             </div>
         </div>
     </div>
+</div> <!-- Fine row principale -->
 
-    <!-- Properties Panel -->
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-header">
-                <h5>Element Properties</h5>
-            </div>
-            <div class="card-body">
-                @if (selectedElement != null)
-                {
-                    <div class="mb-3">
-                        <h6>Selected Element</h6>
-                        <p><strong>Name:</strong> @selectedElement.Name</p>
-                        <p><strong>Type:</strong> @selectedElement.GetType().Name</p>
-                    </div>
-
-                    <div class="mb-3">
-                        <h6>Position & Size</h6>
-                        <div class="row">
-                            <div class="col-6">
-                                <label class="form-label">X:</label>
-                                <input type="number" class="form-control form-control-sm" 
-                                       @bind="selectedElement.X" @bind:after="OnPropertyChanged" />
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label">Y:</label>
-                                <input type="number" class="form-control form-control-sm" 
-                                       @bind="selectedElement.Y" @bind:after="OnPropertyChanged" />
-                            </div>
-                        </div>
-                        <div class="row mt-2">
-                            <div class="col-6">
-                                <label class="form-label">Width:</label>
-                                <input type="number" class="form-control form-control-sm" 
-                                       @bind="selectedElement.Width" @bind:after="OnPropertyChanged" />
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label">Height:</label>
-                                <input type="number" class="form-control form-control-sm" 
-                                       @bind="selectedElement.Height" @bind:after="OnPropertyChanged" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <h6>Appearance</h6>
-                        <div class="row">
-                            <div class="col-6">
-                                <label class="form-label">Opacity:</label>
-                                <input type="range" class="form-range" min="0" max="1" step="0.1"
-                                       @bind="selectedElement.Opacity" @bind:after="OnPropertyChanged" />
-                                <small class="text-muted">@selectedElement.Opacity.ToString("F1")</small>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label">Rotation:</label>
-                                <input type="number" class="form-control form-control-sm" 
-                                       @bind="selectedElement.Rotation" @bind:after="OnPropertyChanged" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" 
-                                   @bind="selectedElement.IsVisible" @bind:after="OnPropertyChanged" />
-                            <label class="form-check-label">Visible</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" 
-                                   @bind="selectedElement.IsLocked" @bind:after="OnPropertyChanged" />
-                            <label class="form-check-label">Locked</label>
-                        </div>
-                    </div>
-
-                    @if (selectedElement is TextElement textElement)
-                    {
-                        <div class="mb-3">
-                            <h6>Text Properties</h6>
-                            <div class="mb-2">
-                                <label class="form-label">Text:</label>
-                                <textarea class="form-control" rows="3" 
-                                          @bind="textElement.Text" @bind:after="OnPropertyChanged"></textarea>
-                            </div>
-                            <div class="row">
-                                <div class="col-6">
-                                    <label class="form-label">Font Family:</label>
-                                    <input type="text" class="form-control form-control-sm" 
-                                           @bind="textElement.FontFamily" @bind:after="OnPropertyChanged" />
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">Font Size:</label>
-                                    <input type="number" class="form-control form-control-sm" 
-                                           @bind="textElement.FontSize" @bind:after="OnPropertyChanged" />
-                                </div>
-                            </div>
-                        </div>
-                    }
-                }
-                else
-                {
-                    <div class="text-muted text-center">
-                        <i class="bi bi-cursor"></i>
-                        <p>Click on an element to select and edit its properties</p>
-                    </div>
-                }
-            </div>
-        </div>
-    </div>
-</div>
+@if (selectedElement != null)
+{
+    <ElementPropertiesPanel SelectedElement="selectedElement" OnPropertyChanged="OnPropertyChanged" />
+}
 
 <!-- Document Properties Modal -->
 <DocumentPropertiesModal IsVisible="showDocumentProperties"

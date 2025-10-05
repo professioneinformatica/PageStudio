@@ -3,10 +3,9 @@ using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models;
 using SkiaSharp;
 using SkiaSharp.Views.Blazor;
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
-using Microsoft.JSInterop;
 using PageStudio.Core.Models.ContainerPageElements;
+using Microsoft.FluentUI.AspNetCore.Components;
 
 namespace PageStudio.Web.Client.Pages;
 
@@ -32,6 +31,15 @@ public partial class DocumentRenderer
 
     private PageLayoutMode layoutMode = PageLayoutMode.Vertical;
 
+    // Modalità di interazione
+    public enum InteractionMode
+    {
+        Selection,
+        Pan
+    }
+
+    private InteractionMode interactionMode = InteractionMode.Selection;
+
     // Document properties modal
     private bool showDocumentProperties = false;
 
@@ -48,11 +56,59 @@ public partial class DocumentRenderer
     // Element selection
     private IPageElement? selectedElement = null;
 
+    // Pagina attualmente selezionata
+    private IPage? selectedPage = null;
+
+    // Pan e scroll
+    private float panOffsetX = 0;
+    private float panOffsetY = 0;
+    private bool isPanning = false;
+    private float panStartX = 0;
+    private float panStartY = 0;
+
+    // Stato di prontezza del canvas SkiaSharp
+    private bool canvasReady = false;
+
+    // Modello per i nodi del treeview
+    private class DocumentTreeNode
+    {
+        public Guid Id { get; set; } = Guid.Empty;
+        public string Label { get; set; } = string.Empty;
+        public object? Model { get; set; }
+        public List<DocumentTreeNode> Children { get; set; } = new();
+        public bool IsPage { get; set; }
+        public bool IsLayer { get; set; }
+        public bool IsGroup { get; set; }
+        public bool IsElement { get; set; }
+    }
+
+    private List<ITreeViewItem> documentTree = new();
+    private ITreeViewItem? selectedTreeNode;
+
+    private string CanvasStyleAttribute
+    {
+        get
+        {
+            var cursorType = "default";
+            switch (interactionMode)
+            {
+                case InteractionMode.Selection:
+                    break;
+                case InteractionMode.Pan:
+                    cursorType = isPanning ? "grabbing" : "grab";
+                    break;
+            }
+
+            return $"width:100%;height:100%;cursor:{cursorType}";
+        }
+    }
+
     private void CreateNewDocument()
     {
         Console.WriteLine("[DEBUG_LOG] CreateNewDocument method called");
         currentDocument = new Document(documentName);
         isRendered = false;
+        selectedPage = null;
         StateHasChanged();
         Console.WriteLine($"[DEBUG_LOG] Document created: {currentDocument?.Name}");
     }
@@ -71,11 +127,10 @@ public partial class DocumentRenderer
                 Height = pageFormat.ActualHeight,
                 Name = $"Page {currentDocument.Pages.Count() + 1}"
             };
-
-            // Add some sample elements to demonstrate rendering
-            // This is a simplified example - in a real implementation you would have proper page elements
-
             currentDocument.AddPage(page);
+            // Se è la prima pagina aggiunta, selezionala
+            if (selectedPage == null)
+                selectedPage = page;
         }
 
         CloseAddPagesModal();
@@ -85,12 +140,13 @@ public partial class DocumentRenderer
     private void RenderDocument()
     {
         if (currentDocument == null) return;
-
         isRendered = true;
-        StateHasChanged();
-
-        // Force canvas repaint
-        canvasView?.Invalidate();
+        if (canvasReady)
+        {
+            StateHasChanged();
+            // Force canvas repaint
+            canvasView?.Invalidate();
+        }
     }
 
     private void ZoomIn()
@@ -123,6 +179,17 @@ public partial class DocumentRenderer
         canvasView?.Invalidate();
     }
 
+    private void SetSelectionMode()
+    {
+        interactionMode = InteractionMode.Selection;
+        StateHasChanged();
+    }
+
+    private void SetPanMode()
+    {
+        interactionMode = InteractionMode.Pan;
+        StateHasChanged();
+    }
 
     private void ShowDocumentProperties()
     {
@@ -171,6 +238,8 @@ public partial class DocumentRenderer
     private void CloseAddTextModal()
     {
         showAddTextModal = false;
+        BuildDocumentTree();
+        
         StateHasChanged();
     }
 
@@ -178,33 +247,20 @@ public partial class DocumentRenderer
     {
         if (currentDocument == null || string.IsNullOrWhiteSpace(request.TextContent))
             return;
-
-        // Create new text element
         var textElement = new TextElement(request.TextContent, request.FontFamily, request.FontSize)
         {
-            X = 50, // Default position
+            X = 50,
             Y = 50,
             ZOrder = 1
         };
-
-        // Add to the first page (or create one if none exists)
-        var firstPage = currentDocument.Pages.FirstOrDefault();
-        if (firstPage == null)
+        // Aggiungi alla pagina selezionata
+        var page = selectedPage ?? currentDocument.Pages.FirstOrDefault();
+        if (page is Page concretePage)
         {
-            // Create a default page if none exists
-            firstPage = new Page
-            {
-                Width = 595, // A4 width in points
-                Height = 842, // A4 height in points  
-                Name = "Page 1"
-            };
-            currentDocument.AddPage(firstPage);
+            concretePage.AddElement(textElement);
         }
 
-        firstPage.AddElement(textElement);
         CloseAddTextModal();
-
-        // Refresh the canvas
         if (isRendered)
         {
             canvasView?.Invalidate();
@@ -231,34 +287,75 @@ public partial class DocumentRenderer
     {
         if (currentDocument == null || !isRendered)
             return;
-
-        // Convert screen coordinates to canvas coordinates accounting for zoom
-        double canvasX = e.OffsetX / zoomLevel;
-        double canvasY = e.OffsetY / zoomLevel;
-
-        // Find clicked element through hit testing
-        IPageElement clickedElement = null;
-        foreach (var page in currentDocument.Pages)
+        double canvasX = (e.OffsetX - panOffsetX) / zoomLevel;
+        double canvasY = (e.OffsetY - panOffsetY) / zoomLevel;
+        IPage? clickedPage = null;
+        double yOffset = 0;
+        if (layoutMode == PageLayoutMode.Vertical)
         {
-            if (page is Page concretePage)
+            foreach (var page in currentDocument.Pages)
             {
-                var elementsAtPosition = concretePage.GetElementsAtPosition(canvasX, canvasY);
-                clickedElement = elementsAtPosition.OrderByDescending(el => el.ZOrder).FirstOrDefault();
-                if (clickedElement != null)
+                if (canvasY >= yOffset && canvasY < yOffset + page.Height)
+                {
+                    clickedPage = page;
                     break;
+                }
+
+                yOffset += page.Height + 20;
+            }
+        }
+        else // SideBySide
+        {
+            var pages = currentDocument.Pages.ToList();
+            double xOffset = 0;
+            yOffset = 0;
+            double maxPageHeight = 0;
+            for (int i = 0; i < pages.Count; i++)
+            {
+                var page = pages[i];
+                if (i % 2 == 0)
+                {
+                    xOffset = 0;
+                    if (i > 0)
+                        yOffset += maxPageHeight + 20;
+                    maxPageHeight = 0;
+                }
+                else
+                {
+                    var previousPage = pages[i - 1];
+                    xOffset = previousPage.Width + 20;
+                }
+
+                if (canvasX >= xOffset && canvasX < xOffset + page.Width && canvasY >= yOffset && canvasY < yOffset + page.Height)
+                {
+                    clickedPage = page;
+                    break;
+                }
+
+                maxPageHeight = Math.Max(maxPageHeight, page.Height);
             }
         }
 
-        // Update selection
+        if (clickedPage != null)
+            selectedPage = clickedPage;
+        // Selezione elemento come prima
+        IPageElement clickedElement = null;
+        if (clickedPage is Page concreteClickedPage)
+        {
+            var elementsAtPosition = concreteClickedPage.GetElementsAtPosition(
+                (e.OffsetX - panOffsetX) / zoomLevel,
+                (e.OffsetY - panOffsetY) / zoomLevel);
+            clickedElement = elementsAtPosition.OrderByDescending(el => el.ZOrder).FirstOrDefault();
+        }
+
         selectedElement = clickedElement;
         canvasView?.Invalidate();
-
-        Console.WriteLine($"[DEBUG_LOG] Clicked at ({canvasX}, {canvasY}), selected: {selectedElement?.Name ?? "None"}");
+        Console.WriteLine($"[DEBUG_LOG] Clicked at ({canvasX}, {canvasY}), selected: {selectedElement?.Name ?? "None"}, page: {selectedPage?.Name}");
     }
 
     private void OnPropertyChanged()
     {
-        if (selectedElement != null)
+        if (selectedElement != null && canvasReady)
         {
             canvasView?.Invalidate();
             StateHasChanged();
@@ -279,18 +376,62 @@ public partial class DocumentRenderer
         }
     }
 
+    private void OnPointerDown(PointerEventArgs e)
+    {
+        if (interactionMode == InteractionMode.Pan)
+        {
+            isPanning = true;
+            panStartX = (float)e.ClientX;
+            panStartY = (float)e.ClientY;
+        }
+        else if (interactionMode == InteractionMode.Selection)
+        {
+            OnCanvasClick(e);
+        }
+    }
+
+    private void OnPointerMove(PointerEventArgs e)
+    {
+        if (interactionMode == InteractionMode.Pan && isPanning)
+        {
+            float deltaX = (float)e.ClientX - panStartX;
+            float deltaY = (float)e.ClientY - panStartY;
+            panOffsetX += deltaX;
+            panOffsetY += deltaY;
+            panStartX = (float)e.ClientX;
+            panStartY = (float)e.ClientY;
+            canvasView?.Invalidate();
+        }
+    }
+
+    private void OnPointerUp(PointerEventArgs e)
+    {
+        isPanning = false;
+    }
+
+    private void OnPointerLeave(PointerEventArgs e)
+    {
+        isPanning = false;
+    }
+
+    private void OnWheel(WheelEventArgs e)
+    {
+        // Scroll verticale (shift per orizzontale)
+        if (e.ShiftKey)
+            panOffsetX -= (float)e.DeltaY;
+        else
+            panOffsetY -= (float)e.DeltaY;
+        canvasView?.Invalidate();
+    }
+
     private void OnPaintSurface(SKPaintSurfaceEventArgs e)
     {
         var surface = e.Surface;
         var canvas = surface.Canvas;
 
         canvas.Clear(SKColors.White);
-
-        if (currentDocument == null || !isRendered)
-            return;
-
-        // Apply zoom transformation
         canvas.Save();
+        canvas.Translate(panOffsetX, panOffsetY);
         canvas.Scale(zoomLevel);
 
         // Create graphics context
@@ -469,5 +610,120 @@ public partial class DocumentRenderer
             // Restore the previous state
             context.Restore();
         }
+    }
+
+    private async Task OnFluentImageSelected(FluentInputFileEventArgs e)
+    {
+        if (currentDocument == null || !isRendered || !canvasReady) return;
+        var file = e;
+        if (file?.Stream == null) return;
+        using var ms = new MemoryStream();
+        await file.Stream.CopyToAsync(ms);
+        var base64 = Convert.ToBase64String(ms.ToArray());
+        var imageElement = new ImageElement(base64)
+        {
+            X = 50,
+            Y = 50
+        };
+        var page = selectedPage ?? currentDocument.Pages.FirstOrDefault();
+        if (page is Page concretePage)
+        {
+            concretePage.AddElement(imageElement);
+            canvasView?.Invalidate();
+        }
+    }
+
+    private void BuildDocumentTree()
+    {
+        documentTree.Clear();
+        if (currentDocument == null) return;
+        foreach (var page in currentDocument.Pages)
+        {
+            var treeItem = new TreeViewItem
+            {
+                Text = $"Page {page.Name}",
+                Id = page.Id.ToString(),
+                Items = new List<ITreeViewItem>()
+            };
+            BuildElementTree(page, treeItem);
+            documentTree.Add(treeItem);
+        }
+    }
+
+    private void BuildElementTree(IPage page, ITreeViewItem tree)
+    {
+        foreach (var layer in page.Layers)
+        {
+            var treeItem = new TreeViewItem
+            {
+                Text = $"{layer.Name}",
+                Id = layer.Id.ToString(),
+                Items = new List<ITreeViewItem>()
+            };
+            (tree.Items as List<ITreeViewItem>)?.Add(treeItem);
+            foreach (var el in layer.Childrens)
+            {
+                BuildElementNodeRecursive(el, treeItem);
+            }
+        }
+    }
+
+    private void BuildElementNodeRecursive(IPageElement el, ITreeViewItem tree)
+    {
+        var treeItem = new TreeViewItem
+        {
+            Text = $"{el.Name}",
+            Id = el.Id.ToString(),
+            Items = el.CanContainChildren ? new List<ITreeViewItem>() : null
+        };
+        (tree.Items as List<ITreeViewItem>)?.Add(treeItem);
+
+        if (el.CanContainChildren)
+        {
+            foreach (var child in el.Childrens)
+            {
+                BuildElementNodeRecursive(child, treeItem);
+            }
+        }
+    }
+
+    private void OnTreeNodeSelected(ITreeViewItem? node)
+    {
+        selectedTreeNode = node;
+        if (node == null) return;
+        // if (node.IsPage && node.Model is IPage page)
+        // {
+        //     selectedPage = page;
+        //     selectedElement = null;
+        // }
+        // else if (node.IsElement && node.Model is IPageElement el)
+        // {
+        //     selectedElement = el;
+        //     // Trova la pagina padre
+        //     foreach (var p in currentDocument!.Pages)
+        //     {
+        //         if (p.GetAllElementsByRenderOrder().Contains(el))
+        //         {
+        //             selectedPage = p;
+        //             break;
+        //         }
+        //     }
+        // }
+
+        // StateHasChanged();
+    }
+
+    // OnAfterRenderAsync: segna il canvas come pronto dopo il primo render
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            canvasReady = true;
+            StateHasChanged();
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
     }
 }
