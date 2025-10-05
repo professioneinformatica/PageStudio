@@ -1,0 +1,113 @@
+@using PageStudio.Core.Models
+@inject IJSRuntime JSRuntime
+
+@if (IsVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Pages</h5>
+                    <button type="button" class="btn-close" @onclick="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @if (Model != null)
+                    {
+                        <div class="mb-3">
+                            <label for="pageFormatSelectModal" class="form-label">Page Size:</label>
+                            <select class="form-select" id="pageFormatSelectModal" @onchange="OnPageFormatChanged">
+                                @for (int i = 0; i < Model.AvailablePageFormats.Count; i++)
+                                {
+                                    var format = Model.AvailablePageFormats[i];
+                                    <option value="@i" selected="@(format.Format == Model.SelectedPageFormat.Format)">
+                                        @format.Format (@format.Description)
+                                    </option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Page Orientation:</label>
+                            <div class="btn-group d-block" role="group">
+                                <button class="btn @(Model.SelectedOrientation == PageOrientation.Portrait ? "btn-primary" : "btn-outline-primary")" 
+                                        @onclick="SetPortraitOrientation" title="Portrait">
+                                    <i class="bi bi-rectangle"></i> Portrait
+                                </button>
+                                <button class="btn @(Model.SelectedOrientation == PageOrientation.Landscape ? "btn-primary" : "btn-outline-primary")" 
+                                        @onclick="SetLandscapeOrientation" title="Landscape">
+                                    <i class="bi bi-phone-landscape"></i> Landscape
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="numberOfPages" class="form-label">Number of Pages:</label>
+                            <input type="number" class="form-control" id="numberOfPages" 
+                                   @bind="Model.NumberOfPagesToAdd" @bind:event="oninput" min="1" max="100">
+                            <div class="form-text">Enter the number of pages to add (1-100)</div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <strong>Preview:</strong><br>
+                            <strong>Format:</strong> @Model.SelectedPageFormat.Format (@Model.SelectedOrientation)<br>
+                            <strong>Dimensions:</strong> @Model.SelectedPageFormat.ActualWidth × @Model.SelectedPageFormat.ActualHeight points<br>
+                            <strong>Pages to add:</strong> @Model.NumberOfPagesToAdd
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="Close">Cancel</button>
+                    <button type="button" class="btn btn-success" @onclick="AddPages">Add @(Model?.NumberOfPagesToAdd ?? 1) Page@((Model?.NumberOfPagesToAdd ?? 1) > 1 ? "s" : "")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public AddPageModel? Model { get; set; }
+    [Parameter] public EventCallback<AddPageModel> AddPagesRequested { get; set; }
+    [Parameter] public EventCallback CloseRequested { get; set; }
+
+    private async Task OnPageFormatChanged(ChangeEventArgs e)
+    {
+        if (Model != null && e.Value != null && int.TryParse(e.Value.ToString()!, out int selectedIndex))
+        {
+            var baseFormat = Model.AvailablePageFormats[selectedIndex];
+            Model.SelectedPageFormat = PageFormat.Create(baseFormat.Format, Model.SelectedOrientation);
+            Model.UpdatePageFormatWithOrientation();
+        }
+    }
+
+    private void SetPortraitOrientation()
+    {
+        if (Model != null)
+        {
+            Model.SelectedOrientation = PageOrientation.Portrait;
+            Model.UpdatePageFormatWithOrientation();
+        }
+    }
+
+    private void SetLandscapeOrientation()
+    {
+        if (Model != null)
+        {
+            Model.SelectedOrientation = PageOrientation.Landscape;
+            Model.UpdatePageFormatWithOrientation();
+        }
+    }
+
+    private async Task AddPages()
+    {
+        if (Model != null)
+        {
+            await AddPagesRequested.InvokeAsync(Model);
+        }
+    }
+
+    private async Task Close()
+    {
+        await CloseRequested.InvokeAsync();
+    }
+}

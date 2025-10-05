@@ -10,7 +10,7 @@ public interface IDocument
     /// <summary>
     /// Unique identifier for the document
     /// </summary>
-    string Id { get; }
+    Guid Id { get; }
     
     /// <summary>
     /// Document name/title
@@ -48,12 +48,12 @@ public interface IDocument
     /// </summary>
     /// <param name="pageId">ID of the page to remove</param>
     /// <returns>True if page was removed, false otherwise</returns>
-    bool RemovePage(string pageId);
+    bool RemovePage(Guid pageId);
     
     /// <summary>
     /// Gets a page by its ID
     /// </summary>
     /// <param name="pageId">Page ID</param>
     /// <returns>The page if found, null otherwise</returns>
-    IPage? GetPage(string pageId);
+    IPage GetPage(Guid pageId);
 }
