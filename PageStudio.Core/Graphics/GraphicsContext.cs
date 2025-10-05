@@ -145,7 +145,9 @@ public class GraphicsContext : IGraphicsContext
     /// <param name="x">X coordinate</param>
     /// <param name="y">Y coordinate</param>
     /// <param name="paint">Paint style</param>
-    public void DrawText(string text, float x, float y, SKPaint paint)
+    /// <param name="font">Text font (if null, uses font from paint)</param>
+    /// <param name="align">Text alignment (default: Left)</param>
+    public void DrawText(string text, float x, float y, SKPaint paint, SKFont? font, SKTextAlign align = SKTextAlign.Left)
     {
         ThrowIfDisposed();
         if (string.IsNullOrEmpty(text))
@@ -153,7 +155,30 @@ public class GraphicsContext : IGraphicsContext
         if (paint == null)
             throw new ArgumentNullException(nameof(paint));
         
-        Canvas.DrawText(text, x, y, paint);
+        // Salva l'allineamento originale del paint
+        var originalAlign = paint.TextAlign;
+        
+        // Imposta l'allineamento del testo
+        paint.TextAlign = align;
+        
+        try
+        {
+            if (font != null)
+            {
+                // Usa il font specificato
+                Canvas.DrawText(text, x, y, font, paint);
+            }
+            else
+            {
+                // Usa il font dal paint
+                Canvas.DrawText(text, x, y, paint);
+            }
+        }
+        finally
+        {
+            // Ripristina l'allineamento originale
+            paint.TextAlign = originalAlign;
+        }
     }
 
     /// <summary>

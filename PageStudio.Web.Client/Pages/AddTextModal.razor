@@ -1,0 +1,73 @@
+@inject IJSRuntime JSRuntime
+
+@if (IsVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Text Element</h5>
+                    <button type="button" class="btn-close" @onclick="Close" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="textContent" class="form-label">Text Content</label>
+                        <textarea id="textContent" class="form-control" rows="3" @bind="TextContent" placeholder="Enter text content"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="fontFamily" class="form-label">Font Family</label>
+                        <select id="fontFamily" class="form-select" @bind="FontFamily">
+                            <option value="Arial">Arial</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Calibri">Calibri</option>
+                            <option value="Helvetica">Helvetica</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Verdana">Verdana</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="fontSize" class="form-label">Font Size (pt)</label>
+                        <input type="number" id="fontSize" class="form-control" min="8" max="72" step="1" @bind="FontSize" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="Close">Cancel</button>
+                    <button type="button" class="btn btn-success" @onclick="AddText">Add Text</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public string TextContent { get; set; } = "Sample Text";
+    [Parameter] public string FontFamily { get; set; } = "Arial";
+    [Parameter] public float FontSize { get; set; } = 12.0f;
+    [Parameter] public EventCallback<AddTextRequest> AddTextRequested { get; set; }
+    [Parameter] public EventCallback CloseRequested { get; set; }
+
+    private async Task AddText()
+    {
+        var request = new AddTextRequest
+        {
+            TextContent = TextContent,
+            FontFamily = FontFamily,
+            FontSize = FontSize
+        };
+        
+        await AddTextRequested.InvokeAsync(request);
+    }
+
+    private async Task Close()
+    {
+        await CloseRequested.InvokeAsync();
+    }
+
+    public class AddTextRequest
+    {
+        public string TextContent { get; set; } = string.Empty;
+        public string FontFamily { get; set; } = string.Empty;
+        public float FontSize { get; set; }
+    }
+}

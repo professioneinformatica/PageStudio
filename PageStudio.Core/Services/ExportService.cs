@@ -126,8 +126,8 @@ public class ExportService : IExportService
                 graphics.Clear(SKColors.White);
             }
 
-            // Render all elements sorted by Z-order
-            var sortedElements = page.Elements.OrderBy(e => e.ZOrder);
+            // Render all elements sorted by layer Z-index then element Z-order
+            var sortedElements = page.GetAllElementsByRenderOrder();
             foreach (var element in sortedElements)
             {
                 if (element.IsVisible)
@@ -194,8 +194,8 @@ public class ExportService : IExportService
         var backgroundColor = ParseBackgroundColor(page.Background) ?? ParseBackgroundColor(imageOptions.BackgroundColor) ?? SKColors.White;
         graphics.Clear(backgroundColor);
 
-        // Render all elements sorted by Z-order
-        var sortedElements = page.Elements.OrderBy(e => e.ZOrder);
+        // Render all elements sorted by layer Z-index then element Z-order
+        var sortedElements = page.GetAllElementsByRenderOrder();
         foreach (var element in sortedElements)
         {
             if (element.IsVisible)

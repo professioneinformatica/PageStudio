@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace PageStudio.Core.Interfaces;
 
 /// <summary>
@@ -8,7 +10,7 @@ public interface IPageElement
     /// <summary>
     /// Unique identifier for the element
     /// </summary>
-    string Id { get; }
+    Guid Id { get; }
     
     /// <summary>
     /// Element name/title
@@ -71,6 +73,16 @@ public interface IPageElement
     DateTime ModifiedAt { get; set; }
     
     /// <summary>
+    /// Whether this element can contain child elements
+    /// </summary>
+    bool CanContainChildren { get; }
+    
+    /// <summary>
+    /// Collection of child elements
+    /// </summary>
+    IList<IPageElement> Childrens { get; }
+    
+    /// <summary>
     /// Renders the element using the provided graphics context
     /// </summary>
     /// <param name="graphics">Graphics context for rendering</param>
@@ -81,4 +93,43 @@ public interface IPageElement
     /// </summary>
     /// <returns>Cloned element</returns>
     IPageElement Clone();
+    
+    /// <summary>
+    /// Adds an element to the layer
+    /// </summary>
+    /// <param name="element">Element to add</param>
+    void AddChildren(IPageElement element);
+    
+    /// <summary>
+    /// Removes an element from the layer
+    /// </summary>
+    /// <param name="elementId">ID of the element to remove</param>
+    /// <returns>True if element was removed, false otherwise</returns>
+    bool RemoveChildren(Guid elementId);
+    
+    /// <summary>
+    /// Gets an element by its ID
+    /// </summary>
+    /// <param name="elementId">Element ID</param>
+    /// <returns>The element if found, null otherwise</returns>
+    IPageElement GetChildren(Guid elementId);
+    
+    /// <summary>
+    /// Gets elements sorted by Z-order (lowest to highest)
+    /// </summary>
+    /// <returns>Elements sorted by Z-order</returns>
+    IEnumerable<IPageElement> GetElementsByZOrder();
+    
+    /// <summary>
+    /// Gets elements at a specific position
+    /// </summary>
+    /// <param name="x">X coordinate</param>
+    /// <param name="y">Y coordinate</param>
+    /// <returns>Elements at the specified position</returns>
+    IEnumerable<IPageElement> GetElementsAtPosition(double x, double y);
+    
+    /// <summary>
+    /// Clears all elements from the layer
+    /// </summary>
+    void ClearElements();
 }

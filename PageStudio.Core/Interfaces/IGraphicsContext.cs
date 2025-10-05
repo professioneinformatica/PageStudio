@@ -79,7 +79,7 @@ public interface IGraphicsContext : IDisposable
     /// <param name="radius">Circle radius</param>
     /// <param name="paint">Paint style</param>
     void DrawCircle(float cx, float cy, float radius, SKPaint paint);
-    
+
     /// <summary>
     /// Draws text
     /// </summary>
@@ -87,7 +87,9 @@ public interface IGraphicsContext : IDisposable
     /// <param name="x">X coordinate</param>
     /// <param name="y">Y coordinate</param>
     /// <param name="paint">Paint style</param>
-    void DrawText(string text, float x, float y, SKPaint paint);
+    /// <param name="align">Alignement</param>
+    /// <param name="font">Font</param>
+    void DrawText(string text, float x, float y, SKPaint paint , SKFont? font, SKTextAlign align = SKTextAlign.Left);
     
     /// <summary>
     /// Draws an image

@@ -10,7 +10,7 @@ public interface IPage
     /// <summary>
     /// Unique identifier for the page
     /// </summary>
-    string Id { get; }
+    Guid Id { get; }
     
     /// <summary>
     /// Page name/title
@@ -33,9 +33,9 @@ public interface IPage
     IMargins Margins { get; set; }
     
     /// <summary>
-    /// Collection of elements on this page
+    /// Collection of layers on this page
     /// </summary>
-    IList<IPageElement> Elements { get; }
+    IList<ILayer> Layers { get; }
     
     /// <summary>
     /// Page background color or pattern
@@ -53,22 +53,67 @@ public interface IPage
     DateTime ModifiedAt { get; set; }
     
     /// <summary>
-    /// Adds an element to the page
+    /// Adds a layer to the page
+    /// </summary>
+    /// <param name="layer">Layer to add</param>
+    void AddLayer(ILayer layer);
+    
+    /// <summary>
+    /// Removes a layer from the page
+    /// </summary>
+    /// <param name="layerId">ID of the layer to remove</param>
+    /// <returns>True if layer was removed, false otherwise</returns>
+    bool RemoveLayer(Guid layerId);
+    
+    /// <summary>
+    /// Gets a layer by its ID
+    /// </summary>
+    /// <param name="layerId">Layer ID</param>
+    /// <returns>The layer if found, null otherwise</returns>
+    ILayer? GetLayer(Guid layerId);
+    
+    /// <summary>
+    /// Gets layers sorted by Z-index (lowest to highest)
+    /// </summary>
+    /// <returns>Layers sorted by Z-index</returns>
+    IEnumerable<ILayer> GetLayersByZIndex();
+    
+    /// <summary>
+    /// Gets the default layer for the page
+    /// </summary>
+    /// <returns>The default layer</returns>
+    ILayer GetDefaultLayer();
+    
+    /// <summary>
+    /// Adds an element to the default layer
     /// </summary>
     /// <param name="element">Element to add</param>
     void AddElement(IPageElement element);
     
     /// <summary>
-    /// Removes an element from the page
+    /// Adds an element to a specific layer
+    /// </summary>
+    /// <param name="element">Element to add</param>
+    /// <param name="layerId">ID of the target layer</param>
+    void AddElementToLayer(IPageElement element, Guid layerId);
+    
+    /// <summary>
+    /// Removes an element from any layer on the page
     /// </summary>
     /// <param name="elementId">ID of the element to remove</param>
     /// <returns>True if element was removed, false otherwise</returns>
-    bool RemoveElement(string elementId);
+    bool RemoveElement(Guid elementId);
     
     /// <summary>
-    /// Gets an element by its ID
+    /// Gets an element by its ID from any layer
     /// </summary>
     /// <param name="elementId">Element ID</param>
     /// <returns>The element if found, null otherwise</returns>
-    IPageElement? GetElement(string elementId);
+    IPageElement? GetElement(Guid elementId);
+    
+    /// <summary>
+    /// Gets all elements from all layers sorted by layer Z-index then element Z-order
+    /// </summary>
+    /// <returns>All elements sorted by rendering order</returns>
+    IEnumerable<IPageElement> GetAllElementsByRenderOrder();
 }
