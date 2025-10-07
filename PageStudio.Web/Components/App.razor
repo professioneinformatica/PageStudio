@@ -15,7 +15,16 @@
 
 <body>
 <Routes @rendermode="InteractiveAuto"/>
-<script src="_framework/blazor.web.js"></script>
+
+@* questa inizializzazione manuale server per far caricare i webassembly *@
+@* si tratta di un bug not che sarà risolto con .net 10 *@
+<script src="_framework/blazor.web.js" autostart="false"></script>
+<script>
+    Blazor.start({
+        webAssembly: {}
+    });
+</script>
+
 </body>
 
 </html>

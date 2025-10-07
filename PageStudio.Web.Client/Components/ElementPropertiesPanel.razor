@@ -1,78 +1,6 @@
 @using PageStudio.Core.Models.ContainerPageElements
 @using PageStudio.Core.Interfaces
 
-@code {
-    [Parameter]
-    public IPageElement? SelectedElement { get; set; }
-    [Parameter]
-    public EventCallback OnPropertyChanged { get; set; }
-
-    private bool keepAspectRatio = false;
-    private double? aspectRatio = null;
-    private double? lastWidth = null;
-    private double? lastHeight = null;
-
-    protected override void OnParametersSet()
-    {
-        if (SelectedElement != null)
-        {
-            // Aggiorna il rapporto solo se cambia elemento selezionato
-            if (lastWidth != SelectedElement.Width || lastHeight != SelectedElement.Height)
-            {
-                if (SelectedElement.Width > 0 && SelectedElement.Height > 0)
-                    aspectRatio = SelectedElement.Width / SelectedElement.Height;
-                else
-                    aspectRatio = null;
-                lastWidth = SelectedElement.Width;
-                lastHeight = SelectedElement.Height;
-            }
-        }
-    }
-
-    private void ToggleAspectRatioLock()
-    {
-        keepAspectRatio = !keepAspectRatio;
-        if (keepAspectRatio && SelectedElement != null && SelectedElement.Width > 0 && SelectedElement.Height > 0)
-            aspectRatio = SelectedElement.Width / SelectedElement.Height;
-    }
-
-    private async Task OnWidthChanged(ChangeEventArgs e)
-    {
-        if (SelectedElement == null) return;
-        if (double.TryParse(e.Value?.ToString(), out var newWidth))
-        {
-            if (keepAspectRatio && aspectRatio.HasValue && aspectRatio.Value > 0)
-            {
-                SelectedElement.Width = newWidth;
-                SelectedElement.Height = Math.Round(newWidth / aspectRatio.Value);
-            }
-            else
-            {
-                SelectedElement.Width = newWidth;
-            }
-            await OnPropertyChanged.InvokeAsync();
-        }
-    }
-
-    private async Task OnHeightChanged(ChangeEventArgs e)
-    {
-        if (SelectedElement == null) return;
-        if (double.TryParse(e.Value?.ToString(), out var newHeight))
-        {
-            if (keepAspectRatio && aspectRatio.HasValue && aspectRatio.Value > 0)
-            {
-                SelectedElement.Height = newHeight;
-                SelectedElement.Width = Math.Round(newHeight * aspectRatio.Value);
-            }
-            else
-            {
-                SelectedElement.Height = newHeight;
-            }
-            await OnPropertyChanged.InvokeAsync();
-        }
-    }
-}
-
 @if (SelectedElement != null)
 {
     <div style="position: fixed; top: 80px; right: 40px; width: 340px; max-width: 90vw; z-index: 1050; background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,0.18); border-radius: 8px; border: 1px solid #ddd; padding: 1.2rem;">
@@ -103,18 +31,18 @@
                     <div class="row mt-2 align-items-end">
                         <div class="col-6">
                             <label class="form-label">Width:</label>
-                            <input type="number" class="form-control form-control-sm" value="@SelectedElement.Width"
-                                   @onchange="OnWidthChanged" />
+                            <input type="number" class="form-control form-control-sm" 
+                                   @bind="SelectedElement.Width" @bind:after="OnPropertyChanged.InvokeAsync" />
                         </div>
                         <div class="col-6">
                             <label class="form-label">Height:</label>
-                            <input type="number" class="form-control form-control-sm" value="@SelectedElement.Height"
-                                   @onchange="OnHeightChanged" />
+                            <input type="number" class="form-control form-control-sm" 
+                                   @bind="SelectedElement.Height" @bind:after="OnPropertyChanged.InvokeAsync" />
                         </div>
                     </div>
                     <div class="mt-2 d-flex align-items-center gap-2">
                         <button class="btn btn-outline-secondary btn-sm" @onclick="ToggleAspectRatioLock" title="Blocca proporzioni">
-                            @if (keepAspectRatio)
+                            @if (SelectedElement?.LockAspectRatio == true)
                             {
                                 <i class="bi bi-lock-fill" title="Blocca proporzioni"></i>
                             }

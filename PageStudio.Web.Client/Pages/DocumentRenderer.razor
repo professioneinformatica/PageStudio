@@ -43,6 +43,11 @@
                         </button>
                     </div>
 
+                    <DocumentPropertiesPanel 
+                        IsVisible="@showDocumentProperties" 
+                        Document="@currentDocument" 
+                        OnClose="@CloseDocumentProperties" />
+
                     @if (currentDocument != null)
                     {
                         <div class="mb-3">
@@ -182,12 +187,6 @@
 {
     <ElementPropertiesPanel SelectedElement="selectedElement" OnPropertyChanged="OnPropertyChanged" />
 }
-
-<!-- Document Properties Modal -->
-<DocumentPropertiesModal IsVisible="showDocumentProperties"
-                         Document="currentDocument"
-                         OnDocumentChanged="OnDocumentPropertiesChanged"
-                         OnClose="CloseDocumentProperties"/>
 
 <!-- Add Pages Modal -->
 <AddPagesModal IsVisible="showAddPagesModal"

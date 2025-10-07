@@ -41,6 +41,11 @@ public interface IPageElement
     /// Rotation angle in degrees
     /// </summary>
     double Rotation { get; set; }
+
+    /// <summary>
+    /// Indicates whether the aspect ratio of the element should remain constant when resizing.
+    /// </summary>
+    public bool LockAspectRatio { get; set; }
     
     /// <summary>
     /// Element opacity (0.0 to 1.0)
@@ -87,6 +92,8 @@ public interface IPageElement
     /// </summary>
     /// <param name="graphics">Graphics context for rendering</param>
     void Render(IGraphicsContext graphics);
+
+    public int? HitTestHandle(double canvasX, double canvasY);
     
     /// <summary>
     /// Creates a deep copy of this element
@@ -132,4 +139,9 @@ public interface IPageElement
     /// Clears all elements from the layer
     /// </summary>
     void ClearElements();
+
+    /// <summary>
+    /// Indicates if the element is currently selected (for UI rendering, e.g. border highlight)
+    /// </summary>
+    bool IsSelected { get; set; }
 }

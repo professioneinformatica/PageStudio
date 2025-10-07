@@ -69,6 +69,13 @@ public partial class DocumentRenderer
     // Stato di prontezza del canvas SkiaSharp
     private bool canvasReady = false;
 
+    // Stato drag and drop elemento
+    private bool isDraggingElement = false;
+    private float dragStartX = 0;
+    private float dragStartY = 0;
+    private double elementStartX = 0;
+    private double elementStartY = 0;
+
     // Modello per i nodi del treeview
     private class DocumentTreeNode
     {
@@ -134,6 +141,7 @@ public partial class DocumentRenderer
         }
 
         CloseAddPagesModal();
+        BuildDocumentTree(); // Aggiorna l'albero dopo aver aggiunto pagine
         this.RenderDocument();
     }
 
@@ -193,6 +201,9 @@ public partial class DocumentRenderer
 
     private void ShowDocumentProperties()
     {
+        // Chiudi l'ElementPropertiesPanel se visibile
+        selectedElement = null;
+        canvasView?.Invalidate();
         if (currentDocument != null)
         {
             showDocumentProperties = true;
@@ -239,7 +250,7 @@ public partial class DocumentRenderer
     {
         showAddTextModal = false;
         BuildDocumentTree();
-        
+
         StateHasChanged();
     }
 
@@ -260,6 +271,7 @@ public partial class DocumentRenderer
             concretePage.AddElement(textElement);
         }
 
+        BuildDocumentTree(); // Aggiorna l'albero dopo aver aggiunto un elemento
         CloseAddTextModal();
         if (isRendered)
         {
@@ -349,6 +361,14 @@ public partial class DocumentRenderer
         }
 
         selectedElement = clickedElement;
+        // Aggiorna la selezione su tutti gli elementi della pagina
+        if (selectedPage is Page concretePage)
+        {
+            foreach (var el in concretePage.GetAllElementsByRenderOrder())
+                el.IsSelected = false;
+            if (clickedElement != null)
+                clickedElement.IsSelected = true;
+        }
         canvasView?.Invalidate();
         Console.WriteLine($"[DEBUG_LOG] Clicked at ({canvasX}, {canvasY}), selected: {selectedElement?.Name ?? "None"}, page: {selectedPage?.Name}");
     }
@@ -376,6 +396,8 @@ public partial class DocumentRenderer
         }
     }
 
+
+
     private void OnPointerDown(PointerEventArgs e)
     {
         if (interactionMode == InteractionMode.Pan)
@@ -386,6 +408,44 @@ public partial class DocumentRenderer
         }
         else if (interactionMode == InteractionMode.Selection)
         {
+            double canvasX = (e.OffsetX - panOffsetX) / zoomLevel;
+            double canvasY = (e.OffsetY - panOffsetY) / zoomLevel;
+            if (selectedElement != null)
+            {
+                // Calcola coordinate locali rispetto all'elemento selezionato
+                double localX = canvasX - selectedElement.X;
+                double localY = canvasY - selectedElement.Y;
+                
+                var handleIdx = selectedElement is PageStudio.Core.Models.Abstractions.PageElement pe ? pe.HitTestHandle(localX, localY) : null;
+                if (handleIdx.HasValue)
+                {
+                    isResizingElement = true;
+                    resizingHandleIndex = handleIdx;
+                    resizeStartX = (float)e.ClientX;
+                    resizeStartY = (float)e.ClientY;
+                    elementStartWidth = selectedElement.Width;
+                    elementStartHeight = selectedElement.Height;
+                    elementStartXResize = selectedElement.X;
+                    elementStartYResize = selectedElement.Y;
+                    return;
+                }
+            }
+            // Drag solo se il click è sopra l'elemento selezionato
+            if (selectedElement != null && selectedPage is Page concretePage)
+            {
+                var elementsAtPosition = concretePage.GetElementsAtPosition(canvasX, canvasY);
+                if (elementsAtPosition.Contains(selectedElement))
+                {
+                    isDraggingElement = true;
+                    dragStartX = (float)e.ClientX;
+                    dragStartY = (float)e.ClientY;
+                    elementStartX = selectedElement.X;
+                    elementStartY = selectedElement.Y;
+                    return;
+                }
+            }
+
+            // Se il click non è sopra l'elemento selezionato, gestisci selezione/deselezione
             OnCanvasClick(e);
         }
     }
@@ -400,6 +460,102 @@ public partial class DocumentRenderer
             panOffsetY += deltaY;
             panStartX = (float)e.ClientX;
             panStartY = (float)e.ClientY;
+            ClampPanOffsets(_canvasPixelWidth, _canvasPixelHeight);
+            canvasView?.Invalidate();
+        }
+        else if (interactionMode == InteractionMode.Selection && isResizingElement && selectedElement != null && resizingHandleIndex.HasValue)
+        {
+            float deltaX = ((float)e.ClientX - resizeStartX) / zoomLevel;
+            float deltaY = ((float)e.ClientY - resizeStartY) / zoomLevel;
+            double newX = elementStartXResize;
+            double newY = elementStartYResize;
+            double newW = elementStartWidth;
+            double newH = elementStartHeight;
+            bool lockAspect = selectedElement.LockAspectRatio;
+            double aspect = elementStartWidth / (elementStartHeight == 0 ? 1 : elementStartHeight);
+            switch (resizingHandleIndex.Value)
+            {
+                case 0: // top-left
+                    newX = elementStartXResize + deltaX;
+                    newY = elementStartYResize + deltaY;
+                    newW = elementStartWidth - deltaX;
+                    newH = elementStartHeight - deltaY;
+                    break;
+                case 1: // top
+                    newY = elementStartYResize + deltaY;
+                    newH = elementStartHeight - deltaY;
+                    break;
+                case 2: // top-right
+                    newY = elementStartYResize + deltaY;
+                    newW = elementStartWidth + deltaX;
+                    newH = elementStartHeight - deltaY;
+                    break;
+                case 3: // right
+                    newW = elementStartWidth + deltaX;
+                    break;
+                case 4: // bottom-right
+                    newW = elementStartWidth + deltaX;
+                    newH = elementStartHeight + deltaY;
+                    break;
+                case 5: // bottom
+                    newH = elementStartHeight + deltaY;
+                    break;
+                case 6: // bottom-left
+                    newX = elementStartXResize + deltaX;
+                    newW = elementStartWidth - deltaX;
+                    newH = elementStartHeight + deltaY;
+                    break;
+                case 7: // left
+                    newX = elementStartXResize + deltaX;
+                    newW = elementStartWidth - deltaX;
+                    break;
+            }
+            // Blocca rapporto di aspetto se richiesto
+            if (lockAspect)
+            {
+                switch (resizingHandleIndex.Value)
+                {
+                    case 0: // top-left
+                    case 2: // top-right
+                    case 4: // bottom-right
+                    case 6: // bottom-left
+                        if (Math.Abs(deltaX) > Math.Abs(deltaY))
+                            newH = newW / aspect;
+                        else
+                            newW = newH * aspect;
+                        if (resizingHandleIndex.Value == 0 || resizingHandleIndex.Value == 6)
+                            newX = elementStartXResize + (elementStartWidth - newW);
+                        if (resizingHandleIndex.Value == 0 || resizingHandleIndex.Value == 2)
+                            newY = elementStartYResize + (elementStartHeight - newH);
+                        break;
+                    case 1: // top
+                    case 5: // bottom
+                        newW = newH * aspect;
+                        newX = elementStartXResize + (elementStartWidth - newW) / 2;
+                        break;
+                    case 3: // right
+                    case 7: // left
+                        newH = newW / aspect;
+                        newY = elementStartYResize + (elementStartHeight - newH) / 2;
+                        break;
+                }
+            }
+            // Limiti minimi
+            newW = Math.Max(10, newW);
+            newH = Math.Max(10, newH);
+            selectedElement.X = newX;
+            selectedElement.Y = newY;
+            selectedElement.Width = newW;
+            selectedElement.Height = newH;
+            canvasView?.Invalidate();
+        }
+        else if (interactionMode == InteractionMode.Selection && isDraggingElement && selectedElement != null)
+        {
+            float deltaX = (float)e.ClientX - dragStartX;
+            float deltaY = (float)e.ClientY - dragStartY;
+            // Aggiorna la posizione dell'elemento selezionato
+            selectedElement.X = elementStartX + deltaX / zoomLevel;
+            selectedElement.Y = elementStartY + deltaY / zoomLevel;
             canvasView?.Invalidate();
         }
     }
@@ -407,25 +563,108 @@ public partial class DocumentRenderer
     private void OnPointerUp(PointerEventArgs e)
     {
         isPanning = false;
+        if (isDraggingElement)
+        {
+            isDraggingElement = false;
+            canvasView?.Invalidate();
+        }
+        if (isResizingElement)
+        {
+            isResizingElement = false;
+            resizingHandleIndex = null;
+            canvasView?.Invalidate();
+        }
     }
 
     private void OnPointerLeave(PointerEventArgs e)
     {
         isPanning = false;
+        if (isDraggingElement)
+        {
+            isDraggingElement = false;
+            canvasView?.Invalidate();
+        }
     }
 
     private void OnWheel(WheelEventArgs e)
     {
-        // Scroll verticale (shift per orizzontale)
-        if (e.ShiftKey)
-            panOffsetX -= (float)e.DeltaY;
-        else
-            panOffsetY -= (float)e.DeltaY;
+        // Gestione scrolling orizzontale e verticale
+        if (Math.Abs(e.DeltaX) > 0.01)
+        {
+            panOffsetX -= (float)e.DeltaX;
+        }
+
+        if (Math.Abs(e.DeltaY) > 0.01)
+        {
+            if (e.ShiftKey)
+                panOffsetX -= (float)e.DeltaY;
+            else
+                panOffsetY -= (float)e.DeltaY;
+        }
+
+        ClampPanOffsets(_canvasPixelWidth, _canvasPixelHeight);
         canvasView?.Invalidate();
     }
 
+    // Calcola i limiti di pan e li applica
+    private void ClampPanOffsets(float canvasWidth, float canvasHeight)
+    {
+        if (currentDocument == null) return;
+        float docWidth = 0;
+        float docHeight = 0;
+        float spacing = 20f;
+        if (layoutMode == PageLayoutMode.Vertical)
+        {
+            // Larghezza massima tra tutte le pagine
+            docWidth = currentDocument.Pages.Max(p => (float)p.Width);
+            // Altezza totale (somma delle altezze + spazi)
+            docHeight = currentDocument.Pages.Sum(p => (float)p.Height) + (currentDocument.Pages.Count - 1) * spacing;
+        }
+        else // SideBySide
+        {
+            var pages = currentDocument.Pages.ToList();
+            float maxRowWidth = 0f;
+            float totalHeight = 0f;
+            for (int i = 0; i < pages.Count; i += 2)
+            {
+                float rowWidth = (float)pages[i].Width;
+                float rowHeight = (float)pages[i].Height;
+                if (i + 1 < pages.Count)
+                {
+                    rowWidth += spacing + (float)pages[i + 1].Width;
+                    rowHeight = Math.Max(rowHeight, (float)pages[i + 1].Height);
+                }
+
+                maxRowWidth = Math.Max(maxRowWidth, rowWidth);
+                totalHeight += rowHeight;
+                if (i + 2 < pages.Count)
+                    totalHeight += spacing;
+            }
+
+            docWidth = maxRowWidth;
+            docHeight = totalHeight;
+        }
+
+        float scaledDocWidth = docWidth * zoomLevel;
+        float scaledDocHeight = docHeight * zoomLevel;
+        // Limiti: non andare oltre il bordo sinistro/superiore (max 0),
+        // né oltre il bordo destro/inferiore (min canvas - doc)
+        float minPanX = Math.Min(0, canvasWidth - scaledDocWidth);
+        float maxPanX = 0;
+        float minPanY = Math.Min(0, canvasHeight - scaledDocHeight);
+        float maxPanY = 0;
+        panOffsetX = Math.Min(maxPanX, Math.Max(minPanX, panOffsetX));
+        panOffsetY = Math.Min(maxPanY, Math.Max(minPanY, panOffsetY));
+    }
+
+    private int _canvasPixelWidth = 0;
+    private int _canvasPixelHeight = 0;
+
     private void OnPaintSurface(SKPaintSurfaceEventArgs e)
     {
+        // Salva la dimensione effettiva del canvas
+        _canvasPixelWidth = e.Info.Width;
+        _canvasPixelHeight = e.Info.Height;
         var surface = e.Surface;
         var canvas = surface.Canvas;
 
@@ -557,28 +796,7 @@ public partial class DocumentRenderer
                 }
             }
 
-            // Draw selection highlight if this element is selected
-            if (selectedElement is not null)
-            {
-                // Translate to element position
-                context.Translate((float)selectedElement.X, (float)selectedElement.Y);
-
-                using var selectionPaint = new SKPaint
-                {
-                    Color = SKColors.Blue,
-                    Style = SKPaintStyle.Stroke,
-                    StrokeWidth = CalculateStrokeWidth(1.0f),
-                    PathEffect = SKPathEffect.CreateDash(new float[] { 3, 3 }, 0)
-                };
-                if (Math.Abs(selectedElement.Rotation) > 0.001)
-                {
-                    context.Rotate((float)selectedElement.Rotation);
-                }
-
-                // Draw selection rectangle around the element
-                var selectionRect = new SKRect(0, 0, (float)selectedElement.Width, (float)selectedElement.Height);
-                context.DrawRect(selectionRect, selectionPaint);
-            }
+            
         }
         finally
         {
@@ -593,6 +811,11 @@ public partial class DocumentRenderer
         // Più il zoom è piccolo, più lo spessore aumenta per rimanere visibile
         return Math.Max(baseWidth / zoomLevel, 0.5f);
     }
+
+    private int? resizingHandleIndex = null;
+    private bool isResizingElement = false;
+    private float resizeStartX, resizeStartY;
+    private double elementStartWidth, elementStartHeight, elementStartXResize, elementStartYResize;
 
     private void RenderPageElement(IGraphicsContext context, IPageElement element)
     {
@@ -610,12 +833,11 @@ public partial class DocumentRenderer
             // Restore the previous state
             context.Restore();
         }
+
     }
 
-    private async Task OnFluentImageSelected(FluentInputFileEventArgs e)
+    private async Task OnFluentImageSelected(FluentInputFileEventArgs file)
     {
-        if (currentDocument == null || !isRendered || !canvasReady) return;
-        var file = e;
         if (file?.Stream == null) return;
         using var ms = new MemoryStream();
         await file.Stream.CopyToAsync(ms);
@@ -629,6 +851,7 @@ public partial class DocumentRenderer
         if (page is Page concretePage)
         {
             concretePage.AddElement(imageElement);
+            BuildDocumentTree(); // Aggiorna l'albero dopo aver aggiunto un'immagine
             canvasView?.Invalidate();
         }
     }

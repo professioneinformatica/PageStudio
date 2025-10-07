@@ -1,0 +1,56 @@
+@using PageStudio.Core.Models
+
+@if (IsVisible && Document != null)
+{
+    <div style="position: fixed; top: 80px; right: 40px; width: 340px; max-width: 90vw; z-index: 1050; background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,0.18); border-radius: 8px; border: 1px solid #ddd; padding: 1.2rem;">
+        <div class="card mb-0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Document Properties</h5>
+                <button type="button" class="btn-close" @onclick="Close"></button>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="documentId" class="form-label">Document ID</label>
+                    <input type="text" class="form-control" id="documentId" value="@Document.Id" readonly>
+                    <div class="form-text">This field is read-only.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="documentName" class="form-label">Document Name</label>
+                    <input type="text" class="form-control" id="documentName" @bind="DocumentName">
+                </div>
+
+                <div class="mb-3">
+                    <label for="documentDpi" class="form-label">DPI (Dots Per Inch)</label>
+                    <input type="number" class="form-control" id="documentDpi" @bind="DocumentDpi" min="72" max="600">
+                    <div class="form-text">Standard values: 72 (screen), 150 (draft print), 300 (high quality print), 600 (professional print)</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="unitOfMeasure" class="form-label">Unit of Measure</label>
+                    <select class="form-select" id="unitOfMeasure" @bind="DocumentUnitOfMeasure">
+                        <option value="@UnitOfMeasure.Centimeters">Centimeters (cm)</option>
+                        <option value="@UnitOfMeasure.Inches">Inches (in)</option>
+                    </select>
+                </div>
+
+                <div class="alert alert-info">
+                    <strong>Current Page Format:</strong> @Document.DefaultPageFormat.Name<br>
+                    <strong>Dimensions:</strong> 
+                    @Document.DefaultPageFormat.GetWidthInUnit(DocumentUnitOfMeasure, DocumentDpi).ToString("F2") × 
+                    @Document.DefaultPageFormat.GetHeightInUnit(DocumentUnitOfMeasure, DocumentDpi).ToString("F2") 
+                    @(DocumentUnitOfMeasure == UnitOfMeasure.Centimeters ? "cm" : "in")<br>
+                    <strong>Pixel Size:</strong> 
+                    @Document.DefaultPageFormat.GetPixelWidth(DocumentDpi).ToString("F0") × 
+                    @Document.DefaultPageFormat.GetPixelHeight(DocumentDpi).ToString("F0") pixels
+                </div>
+            </div>
+            <div class="card-footer d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-secondary" @onclick="Close">Cancel</button>
+                <button type="button" class="btn btn-primary" @onclick="SaveChanges">Save Changes</button>
+            </div>
+        </div>
+    </div>
+}
+
+
