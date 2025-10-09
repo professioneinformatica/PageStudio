@@ -96,16 +96,19 @@ public class Document : IDocument
     /// Adds a new page to the document
     /// </summary>
     /// <param name="page">Page to add</param>
-    public void AddPage(IPage page)
+    public void AddPage(IPage page, int? insertIndex)
     {
-        if (page == null)
-            throw new ArgumentNullException(nameof(page));
+        ArgumentNullException.ThrowIfNull(page);
 
         // Check if page with same ID already exists
         if (_pages.Any(p => p.Id == page.Id))
             throw new InvalidOperationException($"Page with ID '{page.Id}' already exists in this document.");
 
-        _pages.Add(page);
+        if (!insertIndex.HasValue)
+        {
+            insertIndex = _pages.Count;
+        }
+        _pages.Insert(insertIndex.Value, page);
         UpdateModifiedTime();
     }
 
@@ -238,5 +241,25 @@ public class Document : IDocument
     public void UpdateModifiedTime()
     {
         ModifiedAt = DateTime.UtcNow;
+    }
+
+    public void AddPages(PageFormat pageFormat, int numberOfPagesToAdd, int? startPage = null)
+    {
+        if (!startPage.HasValue)
+        {
+            startPage = Pages.Count();
+        }
+        
+        for (int i = 0; i < numberOfPagesToAdd; i++)
+        {
+            var page = new Page
+            {
+                Width = pageFormat.ActualWidth,
+                Height = pageFormat.ActualHeight,
+                Name = $"Page {Pages.Count() + 1}"
+            };
+            this.AddPage(page, startPage.Value + i);
+            // Se è la prima pagina aggiunta, selezionala
+        }
     }
 }

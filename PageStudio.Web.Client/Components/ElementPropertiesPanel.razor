@@ -1,9 +1,13 @@
 @using PageStudio.Core.Models.ContainerPageElements
-@using PageStudio.Core.Interfaces
 
-@if (SelectedElement != null)
+@if (SelectedElement is null)
 {
-    <div style="position: fixed; top: 80px; right: 40px; width: 340px; max-width: 90vw; z-index: 1050; background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,0.18); border-radius: 8px; border: 1px solid #ddd; padding: 1.2rem;">
+    <div>Loading...</div>
+}
+else
+{
+    <div
+        style="position: fixed; top: 80px; right: 40px; width: 340px; max-width: 90vw; z-index: 1050; background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,0.18); border-radius: 8px; border: 1px solid #ddd; padding: 1.2rem;">
         <div class="card mb-0">
             <div class="card-header">
                 <h5 class="mb-0">Element Properties</h5>
@@ -19,29 +23,30 @@
                     <div class="row">
                         <div class="col-6">
                             <label class="form-label">X:</label>
-                            <input type="number" class="form-control form-control-sm" 
-                                   @bind="SelectedElement.X" @bind:after="OnPropertyChanged.InvokeAsync" />
+                            <input type="number" class="form-control form-control-sm"
+                                   @bind="SelectedElement.X" @bind:after="OnPropertyChanged.InvokeAsync"/>
                         </div>
                         <div class="col-6">
                             <label class="form-label">Y:</label>
-                            <input type="number" class="form-control form-control-sm" 
-                                   @bind="SelectedElement.Y" @bind:after="OnPropertyChanged.InvokeAsync" />
+                            <input type="number" class="form-control form-control-sm"
+                                   @bind="SelectedElement.Y" @bind:after="OnPropertyChanged.InvokeAsync"/>
                         </div>
                     </div>
                     <div class="row mt-2 align-items-end">
                         <div class="col-6">
                             <label class="form-label">Width:</label>
-                            <input type="number" class="form-control form-control-sm" 
-                                   @bind="SelectedElement.Width" @bind:after="OnPropertyChanged.InvokeAsync" />
+                            <input type="number" class="form-control form-control-sm"
+                                   @bind="SelectedElement.Width" @bind:after="OnPropertyChanged.InvokeAsync"/>
                         </div>
                         <div class="col-6">
                             <label class="form-label">Height:</label>
-                            <input type="number" class="form-control form-control-sm" 
-                                   @bind="SelectedElement.Height" @bind:after="OnPropertyChanged.InvokeAsync" />
+                            <input type="number" class="form-control form-control-sm"
+                                   @bind="SelectedElement.Height" @bind:after="OnPropertyChanged.InvokeAsync"/>
                         </div>
                     </div>
                     <div class="mt-2 d-flex align-items-center gap-2">
-                        <button class="btn btn-outline-secondary btn-sm" @onclick="ToggleAspectRatioLock" title="Blocca proporzioni">
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="ToggleAspectRatioLock"
+                                title="Blocca proporzioni">
                             @if (SelectedElement?.LockAspectRatio == true)
                             {
                                 <i class="bi bi-lock-fill" title="Blocca proporzioni"></i>
@@ -62,26 +67,38 @@
                     <div class="row">
                         <div class="col-6">
                             <label class="form-label">Opacity:</label>
-                            <input type="range" class="form-range" min="0" max="1" step="0.1"
-                                   @bind="SelectedElement.Opacity" @bind:after="OnPropertyChanged.InvokeAsync" />
-                            <small class="text-muted">@SelectedElement.Opacity.ToString("F1")</small>
+                            @if (SelectedElement is not null)
+                            {
+                                <input type="range" class="form-range" min="0" max="1" step="0.1"
+                                       @bind="SelectedElement.Opacity" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                                <small class="text-muted">@SelectedElement.Opacity.ToString("F1")</small>
+                            }
                         </div>
                         <div class="col-6">
                             <label class="form-label">Rotation:</label>
-                            <input type="number" class="form-control form-control-sm" 
-                                   @bind="SelectedElement.Rotation" @bind:after="OnPropertyChanged.InvokeAsync" />
+                            @if (SelectedElement is not null)
+                            {
+                                <input type="number" class="form-control form-control-sm"
+                                       @bind="SelectedElement.Rotation" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                            }
                         </div>
                     </div>
                 </div>
                 <div class="mb-3">
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" 
-                               @bind="SelectedElement.IsVisible" @bind:after="OnPropertyChanged.InvokeAsync" />
+                        @if (SelectedElement is not null)
+                        {
+                            <input class="form-check-input" type="checkbox"
+                                   @bind="SelectedElement.IsVisible" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                        }
                         <label class="form-check-label">Visible</label>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" 
-                               @bind="SelectedElement.IsLocked" @bind:after="OnPropertyChanged.InvokeAsync" />
+                        @if (SelectedElement is not null)
+                        {
+                            <input class="form-check-input" type="checkbox"
+                                   @bind="SelectedElement.IsLocked" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                        }
                         <label class="form-check-label">Locked</label>
                     </div>
                 </div>
@@ -91,19 +108,19 @@
                         <h6>Text Properties</h6>
                         <div class="mb-2">
                             <label class="form-label">Text:</label>
-                            <textarea class="form-control" rows="3" 
+                            <textarea class="form-control" rows="3"
                                       @bind="textElement.Text" @bind:after="OnPropertyChanged.InvokeAsync"></textarea>
                         </div>
                         <div class="row">
                             <div class="col-6">
                                 <label class="form-label">Font Family:</label>
-                                <input type="text" class="form-control form-control-sm" 
-                                       @bind="textElement.FontFamily" @bind:after="OnPropertyChanged.InvokeAsync" />
+                                <input type="text" class="form-control form-control-sm"
+                                       @bind="textElement.FontFamily" @bind:after="OnPropertyChanged.InvokeAsync"/>
                             </div>
                             <div class="col-6">
                                 <label class="form-label">Font Size:</label>
-                                <input type="number" class="form-control form-control-sm" 
-                                       @bind="textElement.FontSize" @bind:after="OnPropertyChanged.InvokeAsync" />
+                                <input type="number" class="form-control form-control-sm"
+                                       @bind="textElement.FontSize" @bind:after="OnPropertyChanged.InvokeAsync"/>
                             </div>
                         </div>
                     </div>

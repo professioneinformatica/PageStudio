@@ -29,12 +29,14 @@
                         <div class="mb-3">
                             <label class="form-label">Page Orientation:</label>
                             <div class="btn-group d-block" role="group">
-                                <button class="btn @(Model.SelectedOrientation == PageOrientation.Portrait ? "btn-primary" : "btn-outline-primary")" 
-                                        @onclick="SetPortraitOrientation" title="Portrait">
+                                <button
+                                    class="btn @(Model.SelectedOrientation == PageOrientation.Portrait ? "btn-primary" : "btn-outline-primary")"
+                                    @onclick="SetPortraitOrientation" title="Portrait">
                                     <i class="bi bi-rectangle"></i> Portrait
                                 </button>
-                                <button class="btn @(Model.SelectedOrientation == PageOrientation.Landscape ? "btn-primary" : "btn-outline-primary")" 
-                                        @onclick="SetLandscapeOrientation" title="Landscape">
+                                <button
+                                    class="btn @(Model.SelectedOrientation == PageOrientation.Landscape ? "btn-primary" : "btn-outline-primary")"
+                                    @onclick="SetLandscapeOrientation" title="Landscape">
                                     <i class="bi bi-phone-landscape"></i> Landscape
                                 </button>
                             </div>
@@ -42,7 +44,7 @@
 
                         <div class="mb-3">
                             <label for="numberOfPages" class="form-label">Number of Pages:</label>
-                            <input type="number" class="form-control" id="numberOfPages" 
+                            <input type="number" class="form-control" id="numberOfPages"
                                    @bind="Model.NumberOfPagesToAdd" @bind:event="oninput" min="1" max="100">
                             <div class="form-text">Enter the number of pages to add (1-100)</div>
                         </div>
@@ -57,7 +59,8 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="Close">Cancel</button>
-                    <button type="button" class="btn btn-success" @onclick="AddPages">Add @(Model?.NumberOfPagesToAdd ?? 1) Page@((Model?.NumberOfPagesToAdd ?? 1) > 1 ? "s" : "")</button>
+                    <button type="button" class="btn btn-success" @onclick="AddPages">
+                        Add @(Model?.NumberOfPagesToAdd ?? 1) Page@((Model?.NumberOfPagesToAdd ?? 1) > 1 ? "s" : "")</button>
                 </div>
             </div>
         </div>
@@ -78,6 +81,8 @@
             Model.SelectedPageFormat = PageFormat.Create(baseFormat.Format, Model.SelectedOrientation);
             Model.UpdatePageFormatWithOrientation();
         }
+
+        await Task.CompletedTask;
     }
 
     private void SetPortraitOrientation()
@@ -110,4 +115,5 @@
     {
         await CloseRequested.InvokeAsync();
     }
+
 }

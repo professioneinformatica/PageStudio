@@ -36,12 +36,13 @@ public interface IDocument
     /// Last modification timestamp
     /// </summary>
     DateTime ModifiedAt { get; set; }
-    
+
     /// <summary>
     /// Adds a new page to the document
     /// </summary>
     /// <param name="page">Page to add</param>
-    void AddPage(IPage page);
+    /// <param name="insertIndex">The index where insert page. Null to add the page at the end</param>
+    void AddPage(IPage page, int? insertIndex);
     
     /// <summary>
     /// Removes a page from the document

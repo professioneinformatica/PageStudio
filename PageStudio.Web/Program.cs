@@ -9,7 +9,9 @@ public class Program
 // Add services to the container.
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents()
+            .AddCircuitOptions(x => x.DetailedErrors = true)
             .AddInteractiveWebAssemblyComponents();
+
 
         var app = builder.Build();
 

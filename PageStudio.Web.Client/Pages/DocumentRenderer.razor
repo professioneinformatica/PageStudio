@@ -1,10 +1,11 @@
 @page "/document-renderer"
 @using SkiaSharp.Views.Blazor
 @using Microsoft.FluentUI.AspNetCore.Components
+@using PageStudio.Core.Services
 @using PageStudio.Web.Client.Components
 
 <PageTitle>Document Renderer</PageTitle>
-
+<span>@this.AssignedRenderMode</span>
 <h1>Document Renderer</h1>
 
 <div class="row">
@@ -16,7 +17,7 @@
             <div class="card-body">
                 <div class="mb-3">
                     <label for="documentName" class="form-label">Document Name</label>
-                    <input type="text" class="form-control" id="documentName" @bind="documentName"
+                    <input type="text" class="form-control" id="documentName" @bind="_documentName"
                            placeholder="Enter document name">
                 </div>
 
@@ -24,17 +25,16 @@
                     <button class="btn btn-primary" @onclick="CreateNewDocument">Create New Document</button>
                 </div>
 
-                @if (currentDocument != null)
+                @if (_canvasInteractor.CurrentDocument != null)
                 {
                     <div class="mb-3">
-                        <h6>Current Document: @currentDocument.Name</h6>
-                        <p><small class="text-muted">Pages: @currentDocument.Pages.Count()</small></p>
-                        <p><small class="text-muted">Created: @currentDocument.CreatedAt.ToString("yyyy-MM-dd HH:mm")</small>
+                        <h6>Current Document: @_canvasInteractor.CurrentDocument.Name</h6>
+                        <p><small class="text-muted">Pages: @_canvasInteractor.CurrentDocument.Pages.Count()</small></p>
+                        <p><small class="text-muted">Created: @_canvasInteractor.CurrentDocument.CreatedAt.ToString("yyyy-MM-dd HH:mm")</small>
                         </p>
-                        <p><small class="text-muted">Modified: @currentDocument.ModifiedAt.ToString("yyyy-MM-dd HH:mm")</small>
+                        <p><small class="text-muted">Modified: @_canvasInteractor.CurrentDocument.ModifiedAt.ToString("yyyy-MM-dd HH:mm")</small>
                         </p>
-                        <p><small class="text-muted">Pan Offset: X = @panOffsetX.ToString("F0"), Y = @panOffsetY.ToString("F0")</small></p>
-                        <p><strong>Pagina selezionata:</strong> @(selectedPage != null ? selectedPage.Name : "-")</p>
+                        <p><small class="text-muted">Pan Offset: X = @_canvasInteractor.PanOffsetX.ToString("F0"), Y = @_canvasInteractor.PanOffsetY.ToString("F0")</small></p>
                     </div>
 
                     <div class="mb-3">
@@ -44,11 +44,11 @@
                     </div>
 
                     <DocumentPropertiesPanel 
-                        IsVisible="@showDocumentProperties" 
-                        Document="@currentDocument" 
+                        IsVisible="@_showDocumentProperties" 
+                        Document="@_canvasInteractor.CurrentDocument" 
                         OnClose="@CloseDocumentProperties" />
 
-                    @if (currentDocument != null)
+                    @if (_canvasInteractor.CurrentDocument != null)
                     {
                         <div class="mb-3">
                             <button class="btn btn-success" @onclick="ShowAddPagesModal">
@@ -62,7 +62,7 @@
                     <h6>Struttura documento</h6>
 
                     
-                    <FluentTreeView Items="@documentTree" SelectedItem="@selectedTreeNode" SelectedItemChanged="OnTreeNodeSelected">
+                    <FluentTreeView Items="@_documentTree" SelectedItem="@_selectedTreeNode" SelectedItemChanged="OnTreeNodeSelected">
                         
                         <ItemTemplate Context="node">
                             <span>@node.Text</span>
@@ -74,7 +74,7 @@
     </div>
 
     <div class="col-md-9">
-        @if (currentDocument != null && isRendered)
+        @if (_canvasInteractor.CurrentDocument != null && _isRendered)
         {
             <!-- Document Toolbar -->
             <div class="card mb-3">
@@ -85,13 +85,13 @@
                             <div class="d-flex align-items-center gap-2">
                                 <span class="text-muted small">Zoom:</span>
                                 <div class="btn-group btn-group-sm" role="group">
-                                    <button class="btn btn-outline-secondary" @onclick="ZoomOut" title="Zoom Out">
+                                    <button class="btn btn-outline-secondary" @onclick="@_canvasInteractor.ZoomManager.ZoomOut" title="Zoom Out">
                                         <i class="bi bi-zoom-out"></i>
                                     </button>
                                     <button class="btn btn-outline-secondary disabled" disabled>
-                                        @((zoomLevel * 100).ToString("F0"))%
+                                        @((_canvasInteractor.ZoomManager.Level * 100).ToString("F0"))%
                                     </button>
-                                    <button class="btn btn-outline-secondary" @onclick="ZoomIn" title="Zoom In">
+                                    <button class="btn btn-outline-secondary" @onclick="@_canvasInteractor.ZoomManager.ZoomIn" title="Zoom In">
                                         <i class="bi bi-zoom-in"></i>
                                     </button>
                                 </div>
@@ -102,12 +102,12 @@
                                 <span class="text-muted small">Layout:</span>
                                 <div class="btn-group btn-group-sm" role="group">
                                     <button
-                                        class="btn @(layoutMode == PageLayoutMode.Vertical ? "btn-primary" : "btn-outline-primary") btn-sm"
+                                        class="btn @(_canvasInteractor.CurrentLayoutMode == LayoutMode.Vertical ? "btn-primary" : "btn-outline-primary") btn-sm"
                                         @onclick="SetVerticalLayout" title="Vertical Layout">
                                         <i class="bi bi-arrow-down"></i> Vertical
                                     </button>
                                     <button
-                                        class="btn @(layoutMode == PageLayoutMode.SideBySide ? "btn-primary" : "btn-outline-primary") btn-sm"
+                                        class="btn @(_canvasInteractor.CurrentLayoutMode == LayoutMode.SideBySide ? "btn-primary" : "btn-outline-primary") btn-sm"
                                         @onclick="SetSideBySideLayout" title="Side by Side Layout">
                                         <i class="bi bi-arrow-left-right"></i> Side by Side
                                     </button>
@@ -118,11 +118,11 @@
                             <div class="d-flex align-items-center gap-2">
                                 <span class="text-muted small">Modalità:</span>
                                 <div class="btn-group btn-group-sm" role="group">
-                                    <button class="btn @(interactionMode == InteractionMode.Selection ? "btn-primary" : "btn-outline-primary") btn-sm"
+                                    <button class="btn @(_interactionMode == InteractionMode.Selection ? "btn-primary" : "btn-outline-primary") btn-sm"
                                             @onclick="SetSelectionMode" title="Seleziona oggetti">
                                         <i class="bi bi-cursor"></i>
                                     </button>
-                                    <button class="btn @(interactionMode == InteractionMode.Pan ? "btn-primary" : "btn-outline-primary") btn-sm"
+                                    <button class="btn @(_interactionMode == InteractionMode.Pan ? "btn-primary" : "btn-outline-primary") btn-sm"
                                             @onclick="SetPanMode" title="Pan (trascina canvas)">
                                         <i class="bi bi-arrows-move"></i>
                                     </button>
@@ -153,20 +153,34 @@
                 <h5>Document Preview</h5>
             </div>
             <div class="card-body">
-                @if (currentDocument != null && isRendered)
+                @if (_canvasInteractor.CurrentDocument != null && _isRendered)
                 {
-                    <SKCanvasView @ref="canvasView"
+                    <SKCanvasView @ref="_canvasView"
                                   OnPaintSurface="OnPaintSurface"
-                                  @onpointerdown="OnPointerDown"
-                                  @onpointermove="OnPointerMove"
-                                  @onpointerup="OnPointerUp"
-                                  @onpointerleave="OnPointerLeave"
-                                  @onwheel="OnWheel"
-                                  @onpointercancel="OnPointerUp"
-                                  @onpointerout="OnPointerLeave"
-                                  style="@CanvasStyleAttribute"/>
+                                  @onpointerdown="@OnPointerDown"
+                                  @onpointermove="@OnPointerMove"
+                                  @onpointerup="@OnPointerUp"
+                                  @onpointerleave="@OnPointerLeave"
+                                  @onwheel="@OnWheel"
+                                  @onpointercancel="@OnPointerUp"
+                                  @onpointerout="@OnPointerLeave"
+                                  style="@CanvasStyleAttribute" />
+                    <div class="status-bar mt-2 p-2 bg-light border rounded text-end small">
+                        <span>X: @_mouseX.ToString("F0")&nbsp;&nbsp;Y: @_mouseY.ToString("F0")</span>
+                        <span class="mx-3">|</span>
+                        <span>
+                            <strong>Pagina selezionata:</strong> @(_canvasInteractor.SelectedPage != null ? _canvasInteractor.SelectedPage.Name : "-")
+                        </span>
+                        <span class="mx-3">|</span>
+                        <span>
+                            <strong>Posizione su pagina:</strong>
+                            @( _hoveredPage != null && _mousePageX.HasValue && _mousePageY.HasValue
+                                ? $"X: {_mousePageX.Value:F0} Y: {_mousePageY.Value:F0} (pagina: {_hoveredPage.Name})"
+                                : "-" )
+                        </span>
+                    </div>
                 }
-                else if (currentDocument != null)
+                else if (_canvasInteractor.CurrentDocument != null)
                 {
                     <div class="alert alert-info">
                         Document ready. Click "Render Document" to display the preview.
@@ -183,21 +197,21 @@
     </div>
 </div> <!-- Fine row principale -->
 
-@if (selectedElement != null)
+@if (_canvasInteractor.SelectedElement != null)
 {
-    <ElementPropertiesPanel SelectedElement="selectedElement" OnPropertyChanged="OnPropertyChanged" />
+    <ElementPropertiesPanel SelectedElement="@_canvasInteractor.SelectedElement" OnPropertyChanged="@OnPropertyChanged" />
 }
 
 <!-- Add Pages Modal -->
-<AddPagesModal IsVisible="showAddPagesModal"
-               Model="addPageModel"
-               AddPagesRequested="AddSamplePage"
-               CloseRequested="CloseAddPagesModal"/>
+<AddPagesModal IsVisible="@_showAddPagesModal"
+               Model="@_addPageModel"
+               AddPagesRequested="@AddSamplePage"
+               CloseRequested="@CloseAddPagesModal"/>
 
 <!-- Add Text Modal -->
-<AddTextModal IsVisible="showAddTextModal"
-              TextContent="newTextContent"
-              FontFamily="newTextFontFamily"
-              FontSize="newTextFontSize"
-              AddTextRequested="OnAddTextRequested"
-              CloseRequested="CloseAddTextModal" />
+<AddTextModal IsVisible="@_showAddTextModal"
+              TextContent="@_newTextContent"
+              FontFamily="@_newTextFontFamily"
+              FontSize="@_newTextFontSize"
+              AddTextRequested="@OnAddTextRequested"
+              CloseRequested="@CloseAddTextModal" />

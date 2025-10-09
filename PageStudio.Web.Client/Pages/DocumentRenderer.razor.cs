@@ -6,31 +6,31 @@ using SkiaSharp.Views.Blazor;
 using Microsoft.AspNetCore.Components.Web;
 using PageStudio.Core.Models.ContainerPageElements;
 using Microsoft.FluentUI.AspNetCore.Components;
+using PageStudio.Core.Services;
 
 namespace PageStudio.Web.Client.Pages;
 
 public partial class DocumentRenderer
 {
-    private SKCanvasView? canvasView;
-    private Document? currentDocument;
-    private string documentName = "My Document";
-    private bool isRendered = false;
+    private SKCanvasView? _canvasView;
+    private string _documentName = "My Document";
+    private bool _isRendered;
 
-    // Zoom functionality
-    private float zoomLevel = 1.0f;
-    private const float ZoomIncrement = 0.1f;
-    private const float MinZoom = 0.25f;
-    private const float MaxZoom = 4.0f;
+    private readonly CanvasDocumentInteractor _canvasInteractor = new ();
 
-    // Layout mode functionality
-    public enum PageLayoutMode
+    public DocumentRenderer()
     {
-        Vertical,
-        SideBySide
+        _canvasInteractor.ZoomManager.ZoomChanged += OnZoomChanged;
     }
 
-    private PageLayoutMode layoutMode = PageLayoutMode.Vertical;
-
+    private void OnZoomChanged()
+    {
+        if (OperatingSystem.IsBrowser())
+        {
+            _canvasView?.Invalidate();
+        }
+    }
+    
     // Modalità di interazione
     public enum InteractionMode
     {
@@ -38,71 +38,59 @@ public partial class DocumentRenderer
         Pan
     }
 
-    private InteractionMode interactionMode = InteractionMode.Selection;
+    private InteractionMode _interactionMode = InteractionMode.Selection;
 
     // Document properties modal
-    private bool showDocumentProperties = false;
+    private bool _showDocumentProperties;
 
     // Add pages modal
-    private bool showAddPagesModal = false;
-    private AddPageModel addPageModel = new AddPageModel();
+    private bool _showAddPagesModal;
+    private readonly AddPageModel _addPageModel = new();
 
     // Add text modal
-    private bool showAddTextModal = false;
-    private string newTextContent = "Sample Text";
-    private string newTextFontFamily = "Arial";
-    private float newTextFontSize = 12.0f;
-
-    // Element selection
-    private IPageElement? selectedElement = null;
-
-    // Pagina attualmente selezionata
-    private IPage? selectedPage = null;
-
+    private bool _showAddTextModal;
+    private string _newTextContent = "Sample Text";
+    private string _newTextFontFamily = "Arial";
+    private float _newTextFontSize = 12.0f;
+    
     // Pan e scroll
-    private float panOffsetX = 0;
-    private float panOffsetY = 0;
-    private bool isPanning = false;
-    private float panStartX = 0;
-    private float panStartY = 0;
+    private bool _isPanning;
+    private float _panStartX;
+    private float _panStartY;
 
     // Stato di prontezza del canvas SkiaSharp
-    private bool canvasReady = false;
+    private bool _canvasReady;
 
     // Stato drag and drop elemento
-    private bool isDraggingElement = false;
-    private float dragStartX = 0;
-    private float dragStartY = 0;
-    private double elementStartX = 0;
-    private double elementStartY = 0;
+    private bool _isDraggingElement;
+    private float _dragStartX;
+    private float _dragStartY;
+    private double _elementStartX;
+    private double _elementStartY;
 
-    // Modello per i nodi del treeview
-    private class DocumentTreeNode
-    {
-        public Guid Id { get; set; } = Guid.Empty;
-        public string Label { get; set; } = string.Empty;
-        public object? Model { get; set; }
-        public List<DocumentTreeNode> Children { get; set; } = new();
-        public bool IsPage { get; set; }
-        public bool IsLayer { get; set; }
-        public bool IsGroup { get; set; }
-        public bool IsElement { get; set; }
-    }
+    // Stato mouse
+    private double _mouseX;
+    private double _mouseY;
 
-    private List<ITreeViewItem> documentTree = new();
-    private ITreeViewItem? selectedTreeNode;
+    // Variabili per posizione mouse rispetto alla pagina
+    private double? _mousePageX;
+    private double? _mousePageY;
+    private IPage? _hoveredPage;
+
+    private readonly List<ITreeViewItem> _documentTree = [];
+    private ITreeViewItem? _selectedTreeNode;
 
     private string CanvasStyleAttribute
     {
         get
         {
             var cursorType = "default";
-            switch (interactionMode)
+            switch (_interactionMode)
             {
                 case InteractionMode.Selection:
                     break;
                 case InteractionMode.Pan:
-                    cursorType = isPanning ? "grabbing" : "grab";
+                    cursorType = _isPanning ? "grabbing" : "grab";
                     break;
             }
 
@@ -113,142 +101,125 @@ public partial class DocumentRenderer
     private void CreateNewDocument()
     {
         Console.WriteLine("[DEBUG_LOG] CreateNewDocument method called");
-        currentDocument = new Document(documentName);
-        isRendered = false;
-        selectedPage = null;
+        _canvasInteractor.CurrentDocument = new Document(_documentName);
+        _isRendered = false;
         StateHasChanged();
-        Console.WriteLine($"[DEBUG_LOG] Document created: {currentDocument?.Name}");
+        Console.WriteLine($"[DEBUG_LOG] Document created: {_canvasInteractor.CurrentDocument?.Name}");
     }
 
     private void AddSamplePage(AddPageModel model)
     {
-        if (currentDocument == null || model == null) return;
-
-        var pageFormat = model.SelectedPageFormat;
-
-        for (int i = 0; i < model.NumberOfPagesToAdd; i++)
-        {
-            var page = new Page
-            {
-                Width = pageFormat.ActualWidth,
-                Height = pageFormat.ActualHeight,
-                Name = $"Page {currentDocument.Pages.Count() + 1}"
-            };
-            currentDocument.AddPage(page);
-            // Se è la prima pagina aggiunta, selezionala
-            if (selectedPage == null)
-                selectedPage = page;
-        }
-
+        if (_canvasInteractor.CurrentDocument == null) return;
         CloseAddPagesModal();
+
+        _canvasInteractor.CurrentDocument.AddPages(model.SelectedPageFormat, model.NumberOfPagesToAdd, _canvasInteractor.SelectedPageIndex);
+        
         BuildDocumentTree(); // Aggiorna l'albero dopo aver aggiunto pagine
         this.RenderDocument();
     }
 
     private void RenderDocument()
     {
-        if (currentDocument == null) return;
-        isRendered = true;
-        if (canvasReady)
+        if (_canvasInteractor.CurrentDocument == null) return;
+        _isRendered = true;
+        if (_canvasReady)
         {
             StateHasChanged();
             // Force canvas repaint
-            canvasView?.Invalidate();
-        }
-    }
-
-    private void ZoomIn()
-    {
-        if (zoomLevel < MaxZoom)
-        {
-            zoomLevel += ZoomIncrement;
-            canvasView?.Invalidate();
-        }
-    }
-
-    private void ZoomOut()
-    {
-        if (zoomLevel > MinZoom)
-        {
-            zoomLevel -= ZoomIncrement;
-            canvasView?.Invalidate();
+            if (OperatingSystem.IsBrowser())
+            {
+                if (OperatingSystem.IsBrowser())
+                {
+                    _canvasView?.Invalidate();
+                }
+            }
         }
     }
 
     private void SetVerticalLayout()
     {
-        layoutMode = PageLayoutMode.Vertical;
-        canvasView?.Invalidate();
+        _canvasInteractor.CurrentLayoutMode = LayoutMode.Vertical;
+        if (OperatingSystem.IsBrowser())
+        {
+            _canvasView?.Invalidate();
+        }
     }
 
     private void SetSideBySideLayout()
     {
-        layoutMode = PageLayoutMode.SideBySide;
-        canvasView?.Invalidate();
+        _canvasInteractor.CurrentLayoutMode = LayoutMode.SideBySide;
+        if (OperatingSystem.IsBrowser())
+        {
+            _canvasView?.Invalidate();
+        }
     }
 
     private void SetSelectionMode()
     {
-        interactionMode = InteractionMode.Selection;
+        _interactionMode = InteractionMode.Selection;
         StateHasChanged();
     }
 
     private void SetPanMode()
     {
-        interactionMode = InteractionMode.Pan;
+        _interactionMode = InteractionMode.Pan;
         StateHasChanged();
     }
 
     private void ShowDocumentProperties()
     {
         // Chiudi l'ElementPropertiesPanel se visibile
-        selectedElement = null;
-        canvasView?.Invalidate();
-        if (currentDocument != null)
+        _canvasInteractor.SelectedElement = null;
+        if (OperatingSystem.IsBrowser())
         {
-            showDocumentProperties = true;
+            _canvasView?.Invalidate();
+        }
+
+        if (_canvasInteractor.CurrentDocument != null)
+        {
+            _showDocumentProperties = true;
             StateHasChanged();
         }
     }
 
     private void CloseDocumentProperties()
     {
-        showDocumentProperties = false;
+        _showDocumentProperties = false;
         StateHasChanged();
     }
 
     private void ShowAddPagesModal()
     {
-        if (currentDocument != null)
+        if (_canvasInteractor.CurrentDocument != null)
         {
-            showAddPagesModal = true;
-            addPageModel.Reset(); // Reset to default
+            _showAddPagesModal = true;
+            _addPageModel.Reset(); // Reset to default
             StateHasChanged();
         }
     }
 
     private void CloseAddPagesModal()
     {
-        showAddPagesModal = false;
+        _showAddPagesModal = false;
         StateHasChanged();
     }
 
     private void ShowAddTextModal()
     {
-        if (currentDocument != null)
+        if (_canvasInteractor.CurrentDocument != null)
         {
-            showAddTextModal = true;
+            _showAddTextModal = true;
             // Reset to default values
-            newTextContent = "Sample Text";
-            newTextFontFamily = "Arial";
-            newTextFontSize = 12.0f;
+            _newTextContent = "Sample Text";
+            _newTextFontFamily = "Arial";
+            _newTextFontSize = 12.0f;
             StateHasChanged();
         }
     }
 
     private void CloseAddTextModal()
     {
-        showAddTextModal = false;
+        _showAddTextModal = false;
         BuildDocumentTree();
 
         StateHasChanged();
@@ -256,7 +227,7 @@ public partial class DocumentRenderer
 
     private void OnAddTextRequested(AddTextModal.AddTextRequest request)
     {
-        if (currentDocument == null || string.IsNullOrWhiteSpace(request.TextContent))
+        if (_canvasInteractor.CurrentDocument == null || string.IsNullOrWhiteSpace(request.TextContent))
             return;
         var textElement = new TextElement(request.TextContent, request.FontFamily, request.FontSize)
         {
@@ -265,7 +236,7 @@ public partial class DocumentRenderer
             ZOrder = 1
         };
         // Aggiungi alla pagina selezionata
-        var page = selectedPage ?? currentDocument.Pages.FirstOrDefault();
+        var page = _canvasInteractor.SelectedPage ?? _canvasInteractor.CurrentDocument.Pages.FirstOrDefault();
         if (page is Page concretePage)
         {
             concretePage.AddElement(textElement);
@@ -273,9 +244,12 @@ public partial class DocumentRenderer
 
         BuildDocumentTree(); // Aggiorna l'albero dopo aver aggiunto un elemento
         CloseAddTextModal();
-        if (isRendered)
+        if (_isRendered)
         {
-            canvasView?.Invalidate();
+            if (OperatingSystem.IsBrowser())
+            {
+                _canvasView?.Invalidate();
+            }
         }
         else
         {
@@ -283,237 +257,159 @@ public partial class DocumentRenderer
         }
     }
 
-    private void AddTextElement()
+    private void OnPointerDown(PointerEventArgs e)
     {
-        // Legacy method - kept for backward compatibility if needed
-        var request = new AddTextModal.AddTextRequest
+        if (_interactionMode == InteractionMode.Pan)
         {
-            TextContent = newTextContent,
-            FontFamily = newTextFontFamily,
-            FontSize = newTextFontSize
-        };
-        OnAddTextRequested(request);
+            _isPanning = true;
+            _panStartX = (float)e.ClientX;
+            _panStartY = (float)e.ClientY;
+        }
+        else if (_interactionMode == InteractionMode.Selection)
+        {
+            var (canvasX, canvasY) = _canvasInteractor.ToCanvasCoordinates(e.OffsetX, e.OffsetY);
+            if (_canvasInteractor.SelectedElement != null)
+            {
+                double localX = canvasX - _canvasInteractor.SelectedElement.X;
+                double localY = canvasY - _canvasInteractor.SelectedElement.Y;
+                var handleIdx = _canvasInteractor.SelectedElement is Core.Models.Abstractions.PageElement pe ? pe.HitTestHandle(localX, localY) : null;
+                if (handleIdx.HasValue)
+                {
+                    _isResizingElement = true;
+                    _resizingHandleIndex = handleIdx;
+                    _resizeStartX = (float)e.ClientX;
+                    _resizeStartY = (float)e.ClientY;
+                    _elementStartWidth = _canvasInteractor.SelectedElement.Width;
+                    _elementStartHeight = _canvasInteractor.SelectedElement.Height;
+                    _elementStartXResize = _canvasInteractor.SelectedElement.X;
+                    _elementStartYResize = _canvasInteractor.SelectedElement.Y;
+                    return;
+                }
+            }
+            if (_canvasInteractor.SelectedElement != null && _canvasInteractor.SelectedPage is Page concretePage)
+            {
+                var elementsAtPosition = concretePage.GetElementsAtPosition(canvasX, canvasY);
+                if (elementsAtPosition.Contains(_canvasInteractor.SelectedElement))
+                {
+                    _isDraggingElement = true;
+                    _dragStartX = (float)e.ClientX;
+                    _dragStartY = (float)e.ClientY;
+                    _elementStartX = _canvasInteractor.SelectedElement.X;
+                    _elementStartY = _canvasInteractor.SelectedElement.Y;
+                    return;
+                }
+            }
+            // Usa la nuova logica per selezione
+            OnCanvasClick(e);
+        }
     }
 
     private void OnCanvasClick(PointerEventArgs e)
     {
-        if (currentDocument == null || !isRendered)
+        if (_canvasInteractor.CurrentDocument == null || !_isRendered)
             return;
-        double canvasX = (e.OffsetX - panOffsetX) / zoomLevel;
-        double canvasY = (e.OffsetY - panOffsetY) / zoomLevel;
-        IPage? clickedPage = null;
-        double yOffset = 0;
-        if (layoutMode == PageLayoutMode.Vertical)
-        {
-            foreach (var page in currentDocument.Pages)
-            {
-                if (canvasY >= yOffset && canvasY < yOffset + page.Height)
-                {
-                    clickedPage = page;
-                    break;
-                }
 
-                yOffset += page.Height + 20;
-            }
-        }
-        else // SideBySide
-        {
-            var pages = currentDocument.Pages.ToList();
-            double xOffset = 0;
-            yOffset = 0;
-            double maxPageHeight = 0;
-            for (int i = 0; i < pages.Count; i++)
-            {
-                var page = pages[i];
-                if (i % 2 == 0)
-                {
-                    xOffset = 0;
-                    if (i > 0)
-                        yOffset += maxPageHeight + 20;
-                    maxPageHeight = 0;
-                }
-                else
-                {
-                    var previousPage = pages[i - 1];
-                    xOffset = previousPage.Width + 20;
-                }
-
-                if (canvasX >= xOffset && canvasX < xOffset + page.Width && canvasY >= yOffset && canvasY < yOffset + page.Height)
-                {
-                    clickedPage = page;
-                    break;
-                }
-
-                maxPageHeight = Math.Max(maxPageHeight, page.Height);
-            }
-        }
-
-        if (clickedPage != null)
-            selectedPage = clickedPage;
-        // Selezione elemento come prima
-        IPageElement clickedElement = null;
-        if (clickedPage is Page concreteClickedPage)
-        {
-            var elementsAtPosition = concreteClickedPage.GetElementsAtPosition(
-                (e.OffsetX - panOffsetX) / zoomLevel,
-                (e.OffsetY - panOffsetY) / zoomLevel);
-            clickedElement = elementsAtPosition.OrderByDescending(el => el.ZOrder).FirstOrDefault();
-        }
-
-        selectedElement = clickedElement;
-        // Aggiorna la selezione su tutti gli elementi della pagina
-        if (selectedPage is Page concretePage)
+        var (canvasX, canvasY) = _canvasInteractor.ToCanvasCoordinates(e.OffsetX, e.OffsetY);
+        var (clickedPage, clickedElement) = _canvasInteractor.HitTest(_canvasInteractor.CurrentDocument, canvasX, canvasY);
+        _canvasInteractor.SelectedPage = clickedPage;
+        _canvasInteractor.SelectedElement = clickedElement;
+        if (_canvasInteractor.SelectedPage is Page concretePage)
         {
             foreach (var el in concretePage.GetAllElementsByRenderOrder())
                 el.IsSelected = false;
             if (clickedElement != null)
                 clickedElement.IsSelected = true;
         }
-        canvasView?.Invalidate();
-        Console.WriteLine($"[DEBUG_LOG] Clicked at ({canvasX}, {canvasY}), selected: {selectedElement?.Name ?? "None"}, page: {selectedPage?.Name}");
-    }
-
-    private void OnPropertyChanged()
-    {
-        if (selectedElement != null && canvasReady)
+        if (OperatingSystem.IsBrowser())
         {
-            canvasView?.Invalidate();
-            StateHasChanged();
-            Console.WriteLine($"[DEBUG_LOG] Property changed for element: {selectedElement.Name}");
+            _canvasView?.Invalidate();
         }
-    }
-
-    private void OnDocumentPropertiesChanged(Document updatedDocument)
-    {
-        // Document has been updated, refresh UI elements that depend on document properties
-        documentName = updatedDocument.Name;
-        StateHasChanged();
-
-        // Force canvas repaint if document is rendered
-        if (isRendered)
-        {
-            canvasView?.Invalidate();
-        }
-    }
-
-
-
-    private void OnPointerDown(PointerEventArgs e)
-    {
-        if (interactionMode == InteractionMode.Pan)
-        {
-            isPanning = true;
-            panStartX = (float)e.ClientX;
-            panStartY = (float)e.ClientY;
-        }
-        else if (interactionMode == InteractionMode.Selection)
-        {
-            double canvasX = (e.OffsetX - panOffsetX) / zoomLevel;
-            double canvasY = (e.OffsetY - panOffsetY) / zoomLevel;
-            if (selectedElement != null)
-            {
-                // Calcola coordinate locali rispetto all'elemento selezionato
-                double localX = canvasX - selectedElement.X;
-                double localY = canvasY - selectedElement.Y;
-                
-                var handleIdx = selectedElement is PageStudio.Core.Models.Abstractions.PageElement pe ? pe.HitTestHandle(localX, localY) : null;
-                if (handleIdx.HasValue)
-                {
-                    isResizingElement = true;
-                    resizingHandleIndex = handleIdx;
-                    resizeStartX = (float)e.ClientX;
-                    resizeStartY = (float)e.ClientY;
-                    elementStartWidth = selectedElement.Width;
-                    elementStartHeight = selectedElement.Height;
-                    elementStartXResize = selectedElement.X;
-                    elementStartYResize = selectedElement.Y;
-                    return;
-                }
-            }
-            // Drag solo se il click è sopra l'elemento selezionato
-            if (selectedElement != null && selectedPage is Page concretePage)
-            {
-                var elementsAtPosition = concretePage.GetElementsAtPosition(canvasX, canvasY);
-                if (elementsAtPosition.Contains(selectedElement))
-                {
-                    isDraggingElement = true;
-                    dragStartX = (float)e.ClientX;
-                    dragStartY = (float)e.ClientY;
-                    elementStartX = selectedElement.X;
-                    elementStartY = selectedElement.Y;
-                    return;
-                }
-            }
-
-            // Se il click non è sopra l'elemento selezionato, gestisci selezione/deselezione
-            OnCanvasClick(e);
-        }
+        Console.WriteLine($"[DEBUG_LOG] Clicked at ({canvasX}, {canvasY}), selected: {_canvasInteractor.SelectedElement?.Name ?? "None"}, page: {_canvasInteractor.SelectedPage?.Name}");
     }
 
     private void OnPointerMove(PointerEventArgs e)
     {
-        if (interactionMode == InteractionMode.Pan && isPanning)
+        _mouseX = e.OffsetX;
+        _mouseY = e.OffsetY;
+        var (canvasX, canvasY) = _canvasInteractor.ToCanvasCoordinates(e.OffsetX, e.OffsetY);
+        var (page, pageOffsetX, pageOffsetY) = _canvasInteractor.GetPageAtPosition(_canvasInteractor.CurrentDocument, canvasX, canvasY);
+        _hoveredPage = page;
+        if (page != null)
         {
-            float deltaX = (float)e.ClientX - panStartX;
-            float deltaY = (float)e.ClientY - panStartY;
-            panOffsetX += deltaX;
-            panOffsetY += deltaY;
-            panStartX = (float)e.ClientX;
-            panStartY = (float)e.ClientY;
-            ClampPanOffsets(_canvasPixelWidth, _canvasPixelHeight);
-            canvasView?.Invalidate();
+            _mousePageX = canvasX - pageOffsetX;
+            _mousePageY = canvasY - pageOffsetY;
         }
-        else if (interactionMode == InteractionMode.Selection && isResizingElement && selectedElement != null && resizingHandleIndex.HasValue)
+        else
         {
-            float deltaX = ((float)e.ClientX - resizeStartX) / zoomLevel;
-            float deltaY = ((float)e.ClientY - resizeStartY) / zoomLevel;
-            double newX = elementStartXResize;
-            double newY = elementStartYResize;
-            double newW = elementStartWidth;
-            double newH = elementStartHeight;
-            bool lockAspect = selectedElement.LockAspectRatio;
-            double aspect = elementStartWidth / (elementStartHeight == 0 ? 1 : elementStartHeight);
-            switch (resizingHandleIndex.Value)
+            _mousePageX = null;
+            _mousePageY = null;
+        }
+        if (_interactionMode == InteractionMode.Pan && _isPanning)
+        {
+            float deltaX = (float)e.ClientX - _panStartX;
+            float deltaY = (float)e.ClientY - _panStartY;
+            _canvasInteractor.PanOffsetX += deltaX;
+            _canvasInteractor.PanOffsetY += deltaY;
+            _panStartX = (float)e.ClientX;
+            _panStartY = (float)e.ClientY;
+            ClampPanOffsets(_canvasPixelWidth, _canvasPixelHeight);
+            if (OperatingSystem.IsBrowser())
+            {
+                _canvasView?.Invalidate();
+            }
+        }
+        else if (_interactionMode == InteractionMode.Selection && _isResizingElement && _canvasInteractor.SelectedElement != null && _resizingHandleIndex.HasValue)
+        {
+            float deltaX = ((float)e.ClientX - _resizeStartX) / _canvasInteractor.ZoomManager.Level;
+            float deltaY = ((float)e.ClientY - _resizeStartY) / _canvasInteractor.ZoomManager.Level;
+            double newX = _elementStartXResize;
+            double newY = _elementStartYResize;
+            double newW = _elementStartWidth;
+            double newH = _elementStartHeight;
+            bool lockAspect = _canvasInteractor.SelectedElement.LockAspectRatio;
+            double aspect = _elementStartWidth / (_elementStartHeight == 0 ? 1 : _elementStartHeight);
+            switch (_resizingHandleIndex.Value)
             {
                 case 0: // top-left
-                    newX = elementStartXResize + deltaX;
-                    newY = elementStartYResize + deltaY;
-                    newW = elementStartWidth - deltaX;
-                    newH = elementStartHeight - deltaY;
+                    newX = _elementStartXResize + deltaX;
+                    newY = _elementStartYResize + deltaY;
+                    newW = _elementStartWidth - deltaX;
+                    newH = _elementStartHeight - deltaY;
                     break;
                 case 1: // top
-                    newY = elementStartYResize + deltaY;
-                    newH = elementStartHeight - deltaY;
+                    newY = _elementStartYResize + deltaY;
+                    newH = _elementStartHeight - deltaY;
                     break;
                 case 2: // top-right
-                    newY = elementStartYResize + deltaY;
-                    newW = elementStartWidth + deltaX;
-                    newH = elementStartHeight - deltaY;
+                    newY = _elementStartYResize + deltaY;
+                    newW = _elementStartWidth + deltaX;
+                    newH = _elementStartHeight - deltaY;
                     break;
                 case 3: // right
-                    newW = elementStartWidth + deltaX;
+                    newW = _elementStartWidth + deltaX;
                     break;
                 case 4: // bottom-right
-                    newW = elementStartWidth + deltaX;
-                    newH = elementStartHeight + deltaY;
+                    newW = _elementStartWidth + deltaX;
+                    newH = _elementStartHeight + deltaY;
                     break;
                 case 5: // bottom
-                    newH = elementStartHeight + deltaY;
+                    newH = _elementStartHeight + deltaY;
                     break;
                 case 6: // bottom-left
-                    newX = elementStartXResize + deltaX;
-                    newW = elementStartWidth - deltaX;
-                    newH = elementStartHeight + deltaY;
+                    newX = _elementStartXResize + deltaX;
+                    newW = _elementStartWidth - deltaX;
+                    newH = _elementStartHeight + deltaY;
                     break;
                 case 7: // left
-                    newX = elementStartXResize + deltaX;
-                    newW = elementStartWidth - deltaX;
+                    newX = _elementStartXResize + deltaX;
+                    newW = _elementStartWidth - deltaX;
                     break;
             }
+
             // Blocca rapporto di aspetto se richiesto
             if (lockAspect)
             {
-                switch (resizingHandleIndex.Value)
+                switch (_resizingHandleIndex.Value)
                 {
                     case 0: // top-left
                     case 2: // top-right
@@ -523,66 +419,96 @@ public partial class DocumentRenderer
                             newH = newW / aspect;
                         else
                             newW = newH * aspect;
-                        if (resizingHandleIndex.Value == 0 || resizingHandleIndex.Value == 6)
-                            newX = elementStartXResize + (elementStartWidth - newW);
-                        if (resizingHandleIndex.Value == 0 || resizingHandleIndex.Value == 2)
-                            newY = elementStartYResize + (elementStartHeight - newH);
+                        if (_resizingHandleIndex.Value == 0 || _resizingHandleIndex.Value == 6)
+                            newX = _elementStartXResize + (_elementStartWidth - newW);
+                        if (_resizingHandleIndex.Value == 0 || _resizingHandleIndex.Value == 2)
+                            newY = _elementStartYResize + (_elementStartHeight - newH);
                         break;
                     case 1: // top
                     case 5: // bottom
                         newW = newH * aspect;
-                        newX = elementStartXResize + (elementStartWidth - newW) / 2;
+                        newX = _elementStartXResize + (_elementStartWidth - newW) / 2;
                         break;
                     case 3: // right
                     case 7: // left
                         newH = newW / aspect;
-                        newY = elementStartYResize + (elementStartHeight - newH) / 2;
+                        newY = _elementStartYResize + (_elementStartHeight - newH) / 2;
                         break;
                 }
             }
+
             // Limiti minimi
             newW = Math.Max(10, newW);
             newH = Math.Max(10, newH);
-            selectedElement.X = newX;
-            selectedElement.Y = newY;
-            selectedElement.Width = newW;
-            selectedElement.Height = newH;
-            canvasView?.Invalidate();
+            _canvasInteractor.SelectedElement.X = newX;
+            _canvasInteractor.SelectedElement.Y = newY;
+            _canvasInteractor.SelectedElement.Width = newW;
+            _canvasInteractor.SelectedElement.Height = newH;
+            if (OperatingSystem.IsBrowser())
+            {
+                _canvasView?.Invalidate();
+            }
         }
-        else if (interactionMode == InteractionMode.Selection && isDraggingElement && selectedElement != null)
+        else if (_interactionMode == InteractionMode.Selection && _isDraggingElement && _canvasInteractor.SelectedElement != null)
         {
-            float deltaX = (float)e.ClientX - dragStartX;
-            float deltaY = (float)e.ClientY - dragStartY;
+            float deltaX = (float)e.ClientX - _dragStartX;
+            float deltaY = (float)e.ClientY - _dragStartY;
             // Aggiorna la posizione dell'elemento selezionato
-            selectedElement.X = elementStartX + deltaX / zoomLevel;
-            selectedElement.Y = elementStartY + deltaY / zoomLevel;
-            canvasView?.Invalidate();
+            _canvasInteractor.SelectedElement.X = _elementStartX + deltaX / _canvasInteractor.ZoomManager.Level;
+            _canvasInteractor.SelectedElement.Y = _elementStartY + deltaY / _canvasInteractor.ZoomManager.Level;
+            if (OperatingSystem.IsBrowser())
+            {
+                _canvasView?.Invalidate();
+            }
         }
+
+        // Aggiorna la UI per la status bar
+        StateHasChanged();
     }
 
+    private void OnPropertyChanged()
+    {
+        if (_canvasInteractor.SelectedElement != null && _canvasReady)
+        {
+            _canvasView?.Invalidate();
+            StateHasChanged();
+            Console.WriteLine($"[DEBUG_LOG] Property changed for element: {_canvasInteractor.SelectedElement.Name}");
+        }
+    }
+    
     private void OnPointerUp(PointerEventArgs e)
     {
-        isPanning = false;
-        if (isDraggingElement)
+        _isPanning = false;
+        if (_isDraggingElement)
         {
-            isDraggingElement = false;
-            canvasView?.Invalidate();
+            _isDraggingElement = false;
+            if (OperatingSystem.IsBrowser())
+            {
+                _canvasView?.Invalidate();
+            }
         }
-        if (isResizingElement)
+
+        if (_isResizingElement)
         {
-            isResizingElement = false;
-            resizingHandleIndex = null;
-            canvasView?.Invalidate();
+            _isResizingElement = false;
+            _resizingHandleIndex = null;
+            if (OperatingSystem.IsBrowser())
+            {
+                _canvasView?.Invalidate();
+            }
         }
     }
 
     private void OnPointerLeave(PointerEventArgs e)
     {
-        isPanning = false;
-        if (isDraggingElement)
+        _isPanning = false;
+        if (_isDraggingElement)
         {
-            isDraggingElement = false;
-            canvasView?.Invalidate();
+            _isDraggingElement = false;
+            if (OperatingSystem.IsBrowser())
+            {
+                _canvasView?.Invalidate();
+            }
         }
     }
 
@@ -591,38 +517,41 @@ public partial class DocumentRenderer
         // Gestione scrolling orizzontale e verticale
         if (Math.Abs(e.DeltaX) > 0.01)
         {
-            panOffsetX -= (float)e.DeltaX;
+            _canvasInteractor.PanOffsetX -= (float)e.DeltaX;
         }
 
         if (Math.Abs(e.DeltaY) > 0.01)
         {
             if (e.ShiftKey)
-                panOffsetX -= (float)e.DeltaY;
+                _canvasInteractor.PanOffsetX -= (float)e.DeltaY;
             else
-                panOffsetY -= (float)e.DeltaY;
+                _canvasInteractor.PanOffsetY -= (float)e.DeltaY;
         }
 
         ClampPanOffsets(_canvasPixelWidth, _canvasPixelHeight);
-        canvasView?.Invalidate();
+        if (OperatingSystem.IsBrowser())
+        {
+            _canvasView?.Invalidate();
+        }
     }
 
     // Calcola i limiti di pan e li applica
     private void ClampPanOffsets(float canvasWidth, float canvasHeight)
     {
-        if (currentDocument == null) return;
-        float docWidth = 0;
-        float docHeight = 0;
+        if (_canvasInteractor.CurrentDocument == null) return;
+        float docWidth;
+        float docHeight;
         float spacing = 20f;
-        if (layoutMode == PageLayoutMode.Vertical)
+        if (_canvasInteractor.CurrentLayoutMode == LayoutMode.Vertical)
         {
             // Larghezza massima tra tutte le pagine
-            docWidth = currentDocument.Pages.Max(p => (float)p.Width);
+            docWidth = _canvasInteractor.CurrentDocument.Pages.Max(p => (float)p.Width);
             // Altezza totale (somma delle altezze + spazi)
-            docHeight = currentDocument.Pages.Sum(p => (float)p.Height) + (currentDocument.Pages.Count - 1) * spacing;
+            docHeight = _canvasInteractor.CurrentDocument.Pages.Sum(p => (float)p.Height) + (_canvasInteractor.CurrentDocument.Pages.Count - 1) * spacing;
         }
         else // SideBySide
         {
-            var pages = currentDocument.Pages.ToList();
+            var pages = _canvasInteractor.CurrentDocument.Pages.ToList();
             float maxRowWidth = 0f;
             float totalHeight = 0f;
             for (int i = 0; i < pages.Count; i += 2)
@@ -645,20 +574,20 @@ public partial class DocumentRenderer
             docHeight = totalHeight;
         }
 
-        float scaledDocWidth = docWidth * zoomLevel;
-        float scaledDocHeight = docHeight * zoomLevel;
+        float scaledDocWidth = docWidth * _canvasInteractor.ZoomManager.Level;
+        float scaledDocHeight = docHeight * _canvasInteractor.ZoomManager.Level;
         // Limiti: non andare oltre il bordo sinistro/superiore (max 0),
         // né oltre il bordo destro/inferiore (min canvas - doc)
         float minPanX = Math.Min(0, canvasWidth - scaledDocWidth);
         float maxPanX = 0;
         float minPanY = Math.Min(0, canvasHeight - scaledDocHeight);
         float maxPanY = 0;
-        panOffsetX = Math.Min(maxPanX, Math.Max(minPanX, panOffsetX));
-        panOffsetY = Math.Min(maxPanY, Math.Max(minPanY, panOffsetY));
+        _canvasInteractor.PanOffsetX = Math.Min(maxPanX, Math.Max(minPanX, _canvasInteractor.PanOffsetX));
+        _canvasInteractor.PanOffsetY = Math.Min(maxPanY, Math.Max(minPanY, _canvasInteractor.PanOffsetY));
     }
 
-    private int _canvasPixelWidth = 0;
-    private int _canvasPixelHeight = 0;
+    private int _canvasPixelWidth;
+    private int _canvasPixelHeight;
 
     private void OnPaintSurface(SKPaintSurfaceEventArgs e)
     {
@@ -670,15 +599,15 @@ public partial class DocumentRenderer
 
         canvas.Clear(SKColors.White);
         canvas.Save();
-        canvas.Translate(panOffsetX, panOffsetY);
-        canvas.Scale(zoomLevel);
+        canvas.Translate(_canvasInteractor.PanOffsetX, _canvasInteractor.PanOffsetY);
+        canvas.Scale(_canvasInteractor.ZoomManager.Level);
 
         // Create graphics context
         using var graphicsContext = new GraphicsContext(canvas, 800, 600);
         System.Diagnostics.Debug.WriteLine(canvas.DeviceClipBounds);
 
         // Render pages based on layout mode
-        if (layoutMode == PageLayoutMode.Vertical)
+        if (_canvasInteractor.CurrentLayoutMode == LayoutMode.Vertical)
         {
             RenderPagesVertically(graphicsContext);
         }
@@ -694,7 +623,7 @@ public partial class DocumentRenderer
     private void RenderPagesVertically(IGraphicsContext context)
     {
         var yOffset = 0f;
-        foreach (var page in currentDocument!.Pages)
+        foreach (var page in _canvasInteractor.CurrentDocument!.Pages)
         {
             RenderPage(context, page, 0, yOffset);
             yOffset += (float)page.Height + 20; // Add some spacing between pages
@@ -703,22 +632,22 @@ public partial class DocumentRenderer
 
     private void RenderPagesSideBySide(IGraphicsContext context)
     {
-        var pages = currentDocument!.Pages.ToList();
-        var xOffset = 0f;
-        var yOffset = 0f;
+        var pages = _canvasInteractor.CurrentDocument!.Pages.ToList();
         var maxPageHeight = 0f;
 
-        for (int i = 0; i < pages.Count; i++)
+        for (var i = 0; i < pages.Count; i++)
         {
             var page = pages[i];
 
             // If this is an even index (0, 2, 4...), start a new row
+            float xOffset;
+            float yOffset = 0;
             if (i % 2 == 0)
             {
                 xOffset = 0f;
                 if (i > 0)
                 {
-                    yOffset += maxPageHeight + 20; // Move to next row with spacing
+                    yOffset += maxPageHeight + 20; // Move to the next row with spacing
                 }
 
                 maxPageHeight = 0f;
@@ -748,55 +677,40 @@ public partial class DocumentRenderer
             context.Translate(xOffset, yOffset);
 
             // Draw page background
-            using var backgroundPaint = new SKPaint
-            {
-                Color = SKColors.White,
-                Style = SKPaintStyle.Fill
-            };
+            using var backgroundPaint = new SKPaint();
+            backgroundPaint.Color = SKColors.White;
+            backgroundPaint.Style = SKPaintStyle.Fill;
 
             context.DrawRect(new SKRect(0, 0, (float)page.Width, (float)page.Height), backgroundPaint);
 
             // Draw page border
-            using var borderPaint = new SKPaint
-            {
-                Color = SKColors.LightGray,
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = CalculateStrokeWidth(1.0f)
-            };
+            using var borderPaint = new SKPaint();
+            borderPaint.Color = SKColors.LightGray;
+            borderPaint.Style = SKPaintStyle.Stroke;
+            borderPaint.StrokeWidth = CalculateStrokeWidth(1.0f);
 
             context.DrawRect(new SKRect(0, 0, (float)page.Width, (float)page.Height), borderPaint);
 
             // Draw page title
-            using var textPaint = new SKPaint
-            {
-                Color = SKColors.Black,
-                TextSize = 16,
-                IsAntialias = true
-            };
+            using var textPaint = new SKPaint();
+            textPaint.Color = SKColors.Black;
+            textPaint.IsAntialias = true;
 
-            using var font = new SKFont
-            {
-                Size = 16
-            };
+            using var font = new SKFont();
+            font.Size = 16;
 
-            context.DrawText($"Page: {page.Name}", 10, 25, textPaint, font, SKTextAlign.Left);
+            context.DrawText($"Page: {page.Name}", 10, 25, textPaint, font);
 
             // Draw page dimensions info
-            textPaint.TextSize = 12;
             font.Size = 12;
-            context.DrawText($"Size: {page.Width} x {page.Height}", 10, 45, textPaint, font, SKTextAlign.Left);
+            context.DrawText($"Size: {page.Width} x {page.Height}", 10, 45, textPaint, font);
 
             // Render page elements if they exist
             var elements = page.GetAllElementsByRenderOrder();
-            if (elements != null)
+            foreach (var element in elements)
             {
-                foreach (var element in elements)
-                {
-                    RenderPageElement(context, element);
-                }
+                RenderPageElement(context, element);
             }
-
-            
         }
         finally
         {
@@ -809,13 +723,13 @@ public partial class DocumentRenderer
     {
         // Mantiene lo spessore visibile indipendentemente dal zoom
         // Più il zoom è piccolo, più lo spessore aumenta per rimanere visibile
-        return Math.Max(baseWidth / zoomLevel, 0.5f);
+        return Math.Max(baseWidth / _canvasInteractor.ZoomManager.Level, 0.5f);
     }
 
-    private int? resizingHandleIndex = null;
-    private bool isResizingElement = false;
-    private float resizeStartX, resizeStartY;
-    private double elementStartWidth, elementStartHeight, elementStartXResize, elementStartYResize;
+    private int? _resizingHandleIndex;
+    private bool _isResizingElement;
+    private float _resizeStartX, _resizeStartY;
+    private double _elementStartWidth, _elementStartHeight, _elementStartXResize, _elementStartYResize;
 
     private void RenderPageElement(IGraphicsContext context, IPageElement element)
     {
@@ -833,12 +747,11 @@ public partial class DocumentRenderer
             // Restore the previous state
             context.Restore();
         }
-
     }
 
     private async Task OnFluentImageSelected(FluentInputFileEventArgs file)
     {
-        if (file?.Stream == null) return;
+        if (file.Stream == null) return;
         using var ms = new MemoryStream();
         await file.Stream.CopyToAsync(ms);
         var base64 = Convert.ToBase64String(ms.ToArray());
@@ -847,20 +760,22 @@ public partial class DocumentRenderer
             X = 50,
             Y = 50
         };
-        var page = selectedPage ?? currentDocument.Pages.FirstOrDefault();
-        if (page is Page concretePage)
+        var page = _canvasInteractor.SelectedPage ?? _canvasInteractor.CurrentDocument?.Pages.FirstOrDefault();
+        if (page != null)
+            page.AddElement(imageElement);
+        BuildDocumentTree(); // Aggiorna l'albero dopo aver aggiunto un'immagine
+        if (OperatingSystem.IsBrowser())
         {
-            concretePage.AddElement(imageElement);
-            BuildDocumentTree(); // Aggiorna l'albero dopo aver aggiunto un'immagine
-            canvasView?.Invalidate();
+            _canvasView?.Invalidate();
         }
     }
 
+
     private void BuildDocumentTree()
     {
-        documentTree.Clear();
-        if (currentDocument == null) return;
-        foreach (var page in currentDocument.Pages)
+        _documentTree.Clear();
+        if (_canvasInteractor.CurrentDocument == null) return;
+        foreach (var page in _canvasInteractor.CurrentDocument.Pages)
         {
             var treeItem = new TreeViewItem
             {
@@ -869,7 +784,7 @@ public partial class DocumentRenderer
                 Items = new List<ITreeViewItem>()
             };
             BuildElementTree(page, treeItem);
-            documentTree.Add(treeItem);
+            _documentTree.Add(treeItem);
         }
     }
 
@@ -912,7 +827,7 @@ public partial class DocumentRenderer
 
     private void OnTreeNodeSelected(ITreeViewItem? node)
     {
-        selectedTreeNode = node;
+        _selectedTreeNode = node;
         if (node == null) return;
         // if (node.IsPage && node.Model is IPage page)
         // {
@@ -936,17 +851,66 @@ public partial class DocumentRenderer
         // StateHasChanged();
     }
 
-    // OnAfterRenderAsync: segna il canvas come pronto dopo il primo render
+// OnAfterRenderAsync: segna il canvas come pronto dopo il primo render
     protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
         {
-            canvasReady = true;
+            _canvasReady = true;
             StateHasChanged();
         }
     }
 
     protected override void OnParametersSet()
     {
+    }
+
+    /// <summary>
+    /// Restituisce la pagina e l'offset della pagina dati canvasX/canvasY
+    /// </summary>
+    private (IPage? page, double pageOffsetX, double pageOffsetY) GetPageAtPosition(double canvasX, double canvasY)
+    {
+        if (_canvasInteractor.CurrentDocument == null) return (null, 0, 0);
+        if (_canvasInteractor.CurrentLayoutMode == LayoutMode.Vertical)
+        {
+            double yOffset = 0;
+            foreach (var page in _canvasInteractor.CurrentDocument.Pages)
+            {
+                if (canvasY >= yOffset && canvasY < yOffset + page.Height)
+                {
+                    return (page, 0, yOffset);
+                }
+                yOffset += page.Height + 20;
+            }
+        }
+        else // SideBySide
+        {
+            var pages = _canvasInteractor.CurrentDocument.Pages.ToList();
+            double yOffset = 0;
+            double maxPageHeight = 0;
+            for (int i = 0; i < pages.Count; i++)
+            {
+                var page = pages[i];
+                double xOffset;
+                if (i % 2 == 0)
+                {
+                    xOffset = 0;
+                    if (i > 0)
+                        yOffset += maxPageHeight + 20;
+                    maxPageHeight = 0;
+                }
+                else
+                {
+                    var previousPage = pages[i - 1];
+                    xOffset = previousPage.Width + 20;
+                }
+                if (canvasX >= xOffset && canvasX < xOffset + page.Width && canvasY >= yOffset && canvasY < yOffset + page.Height)
+                {
+                    return (page, xOffset, yOffset);
+                }
+                maxPageHeight = Math.Max(maxPageHeight, page.Height);
+            }
+        }
+        return (null, 0, 0);
     }
 }
