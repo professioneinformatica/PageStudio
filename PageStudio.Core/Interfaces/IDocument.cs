@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using PageStudio.Core.Models;
+using PageStudio.Core.Models.Documents;
 
 namespace PageStudio.Core.Interfaces;
 
@@ -17,6 +18,16 @@ public interface IDocument
     /// Document name/title
     /// </summary>
     string Name { get; set; }
+
+    /// <summary>
+    /// Represents the dots per inch (DPI) setting of the document, which determines the resolution of the image or layout.
+    /// </summary>
+    int Dpi { get; set; }
+
+    /// <summary>
+    /// Defines the unit of measurement for the document dimensions
+    /// </summary>
+    UnitOfMeasure UnitOfMeasure { get; set; }
     
     /// <summary>
     /// Collection of pages in the document
@@ -37,6 +48,13 @@ public interface IDocument
     /// Last modification timestamp
     /// </summary>
     DateTime ModifiedAt { get; set; }
+
+    /// <summary>
+    /// Specifies the default page format used by the document.
+    /// This property defines the initial dimensions, orientation, and format
+    /// for new pages added to the document.
+    /// </summary>
+    PageFormat DefaultPageFormat { get; set; }
 
     /// <summary>
     /// Adds a new page to the document
@@ -82,4 +100,17 @@ public interface IDocument
     /// <param name="pageId">The ID of the page to set as active</param>
     /// <returns>A task that represents the asynchronous operation</returns>
     Task SetActivePage(Guid pageId);
+
+    /// <summary>
+    /// Updates the ModifiedAt timestamp to the current UTC time.
+    /// </summary>
+    void UpdateModifiedTime();
+
+    /// <summary>
+    /// Sets a metadata key-value pair for the document.
+    /// </summary>
+    /// <param name="key">The key associated with the metadata entry.</param>
+    /// <param name="value">The value to set for the specified key.</param>
+    void SetMetadata(string key, object  value);
+
 }

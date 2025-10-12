@@ -15,15 +15,19 @@ namespace PageStudio.Web.Client.Pages;
 public partial class DocumentRenderer
 {
     private readonly IMediator _mediator;
+    private readonly ILogger<DocumentRenderer> _logger;
+    private readonly IDocumentsRepository _documentsRepository;
     private SKCanvasView? _canvasView;
     private string _documentName = "My Document";
     private bool _isRendered;
 
     private readonly CanvasDocumentInteractor _canvasInteractor = new();
 
-    public DocumentRenderer(IMediator mediator)
+    public DocumentRenderer(IMediator mediator, ILogger<DocumentRenderer> logger, IDocumentsRepository documentsRepository)
     {
         _mediator = mediator;
+        _logger = logger;
+        _documentsRepository = documentsRepository;
         _canvasInteractor.ZoomManager.ZoomChanged += OnZoomChanged;
     }
 
@@ -92,11 +96,11 @@ public partial class DocumentRenderer
 
     private void CreateNewDocument()
     {
-        Console.WriteLine("[DEBUG_LOG] CreateNewDocument method called");
-        _canvasInteractor.CurrentDocument = new Document(_mediator, _documentName);
+        _logger.LogDebug("CreateNewDocument method called");
+        _canvasInteractor.CurrentDocument = _documentsRepository.Create(_documentName);
         _isRendered = false;
         StateHasChanged();
-        Console.WriteLine($"[DEBUG_LOG] Document created: {_canvasInteractor.CurrentDocument?.Name}");
+        _logger.LogDebug("Document created: {Document}", _canvasInteractor.CurrentDocument.Name);
     }
 
     private async Task AddSamplePage(AddPageModel model)
@@ -108,7 +112,7 @@ public partial class DocumentRenderer
 
         foreach (var page in addedPages)
         {
-            var title = page.AddElement(new TextElement()
+            var title = page.AddElement(new TextElement(this._mediator, page)
             {
                 Text = $"Page Name: {page.Name}",
                 FontFamily = "Arial",
@@ -118,7 +122,7 @@ public partial class DocumentRenderer
                 Y = 10
             });
 
-            page.AddElement(new TextElement()
+            page.AddElement(new TextElement(this._mediator, page)
             {
                 Text = $"Page Size: {page.Width} x {page.Height}",
                 FontFamily = "Arial",
@@ -127,7 +131,6 @@ public partial class DocumentRenderer
                 X = title.X,
                 Y = title.Height + 10,
             });
-
         }
 
         BuildDocumentTree(); // Aggiorna l'albero dopo aver aggiunto pagine
@@ -226,20 +229,20 @@ public partial class DocumentRenderer
 
     private void OnAddTextRequested(AddTextModal.AddTextRequest request)
     {
-        if (_canvasInteractor.CurrentDocument == null || string.IsNullOrWhiteSpace(request.TextContent))
+        if (_canvasInteractor.CurrentDocument is null
+            || string.IsNullOrWhiteSpace(request.TextContent)
+            || _canvasInteractor.SelectedPage is null)
             return;
-        var textElement = new TextElement(request.TextContent, request.FontFamily, request.FontSize)
+
+
+        var textElement = new TextElement(this._mediator, _canvasInteractor.SelectedPage, request.TextContent, request.FontFamily, request.FontSize)
         {
             X = 50,
             Y = 50,
             ZOrder = 1
         };
         // Aggiungi alla pagina selezionata
-        var page = _canvasInteractor.SelectedPage ?? _canvasInteractor.CurrentDocument.Pages.FirstOrDefault();
-        if (page is Page concretePage)
-        {
-            concretePage.AddElement(textElement);
-        }
+        _canvasInteractor.SelectedPage.AddElement(textElement);
 
         BuildDocumentTree(); // Aggiorna l'albero dopo aver aggiunto un elemento
         CloseAddTextModal();
@@ -713,18 +716,21 @@ public partial class DocumentRenderer
 
     private async Task OnFluentImageSelected(FluentInputFileEventArgs file)
     {
+        if (_canvasInteractor.SelectedPage is null)
+        {
+            return;
+        }
+
         if (file.Stream == null) return;
         using var ms = new MemoryStream();
         await file.Stream.CopyToAsync(ms);
         var base64 = Convert.ToBase64String(ms.ToArray());
-        var imageElement = new ImageElement(base64)
+        var imageElement = new ImageElement(this._mediator, _canvasInteractor.SelectedPage, base64)
         {
             X = 50,
             Y = 50
         };
-        var page = _canvasInteractor.SelectedPage ?? _canvasInteractor.CurrentDocument?.Pages.FirstOrDefault();
-        if (page != null)
-            page.AddElement(imageElement);
+        _canvasInteractor.SelectedPage.AddElement(imageElement);
         BuildDocumentTree(); // Aggiorna l'albero dopo aver aggiunto un'immagine
         RenderCanvas();
     }

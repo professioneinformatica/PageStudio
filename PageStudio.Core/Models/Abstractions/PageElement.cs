@@ -1,5 +1,7 @@
 using Ardalis.GuardClauses;
+using Mediator;
 using PageStudio.Core.Interfaces;
+using PageStudio.Core.Models.ContainerPageElements;
 using SkiaSharp;
 
 namespace PageStudio.Core.Models.Abstractions;
@@ -9,6 +11,8 @@ namespace PageStudio.Core.Models.Abstractions;
 /// </summary>
 public abstract class PageElement : IPageElement
 {
+    public IMediator InternalMediator { get; init; }
+
     /// <summary>
     /// Unique identifier for the element
     /// </summary>
@@ -53,9 +57,9 @@ public abstract class PageElement : IPageElement
         _width = width;
         _height = height;
     }
-    
+
     private double _height;
-    
+
     /// <summary>
     /// Height of the element
     /// </summary>
@@ -96,7 +100,15 @@ public abstract class PageElement : IPageElement
     /// <summary>
     /// Z-order of the element (higher values are on top)
     /// </summary>
-    public int ZOrder { get; set; }
+    public int ZOrder
+    {
+        get => _zOrder;
+        set
+        {
+            _zOrder = value;
+            InternalMediator.Publish(new PageElementZOrderChangedMessage(this));
+        }
+    }
 
     /// <summary>
     /// Element creation timestamp
@@ -134,12 +146,18 @@ public abstract class PageElement : IPageElement
     /// </summary>
     protected readonly List<IPageElement> _children = new();
 
+    public IPage Page { get; }
+
     /// <summary>
     /// Initializes a new instance of PageElement
     /// </summary>
+    /// <param name="page"></param>
     /// <param name="name">Element name</param>
-    protected PageElement(string name = "Element")
+    /// <param name="mediator"></param>
+    protected PageElement(IMediator mediator, IPage page, string name = "Element")
     {
+        InternalMediator = mediator;
+        Page = page;
         Id = Guid.CreateVersion7();
         Name = name;
         X = 0;
@@ -186,6 +204,7 @@ public abstract class PageElement : IPageElement
     private SKRect[] handleRects = new SKRect[8]; // 8 handle: 4 angoli, 4 lati
     private readonly float HandleSize = 10f;
     private readonly float HandleHitTestSize = 16f;
+    private int _zOrder;
 
     public int? HitTestHandle(double canvasX, double canvasY)
     {
@@ -366,7 +385,7 @@ public abstract class PageElement : IPageElement
         _children.Clear();
         UpdateModifiedTime();
     }
-    
+
     /// <summary>
     /// Indicates if the element is currently selected (for UI rendering, e.g. border highlight)
     /// </summary>

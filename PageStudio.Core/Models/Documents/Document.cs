@@ -133,8 +133,7 @@ public class Document : IDocument
         {
             UpdateModifiedTime();
         }
-
-        return removed;
+        return await Task.FromResult(removed);
     }
 
     /// <summary>
@@ -199,7 +198,7 @@ public class Document : IDocument
         _pages.RemoveAt(fromIndex);
         _pages.Insert(toIndex, page);
         UpdateModifiedTime();
-        return true;
+        return await Task.FromResult(true);
     }
 
     /// <summary>
@@ -262,7 +261,7 @@ public class Document : IDocument
 
         for (int i = 0; i < numberOfPagesToAdd; i++)
         {
-            var page = new Page(this)
+            var page = new Page(this._mediator, this)
             {
                 Width = pageFormat.ActualWidth,
                 Height = pageFormat.ActualHeight,
@@ -284,8 +283,9 @@ public class Document : IDocument
     {
         foreach (var page in _pages)
         {
-            var concretePage = page as Page;
+            var concretePage = (Page)page ;
             concretePage.IsActive = page.Id == pageId;
         }
+        await Task.CompletedTask;
     }
 }

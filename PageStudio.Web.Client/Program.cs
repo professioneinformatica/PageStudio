@@ -10,6 +10,8 @@ public static class Program
     {
         var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
+        builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
+        
         builder.Services.AddMediator((MediatorOptions options) =>
             {
                 options.Assemblies = [typeof(PageStudio.Web.Client.Program),typeof(PageStudio.Core.Interfaces.IDocument)];

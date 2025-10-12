@@ -2,6 +2,7 @@ using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models.Abstractions;
 using SkiaSharp;
 using System;
+using Mediator;
 
 namespace PageStudio.Core.Models.ContainerPageElements;
 
@@ -23,8 +24,10 @@ public class ImageElement : PageElement
     /// <summary>
     /// Costruttore
     /// </summary>
+    /// <param name="page"></param>
     /// <param name="imageBase64">Dati immagine base64</param>
-    public ImageElement(string? imageBase64 = null) : base("Image Element")
+    /// <param name="mediator"></param>
+    public ImageElement(IMediator mediator, IPage page, string? imageBase64 = null) : base(mediator, page, "Image Element")
     {
         ImageBase64 = imageBase64;
         SetDimension(200, 150);
@@ -77,7 +80,7 @@ public class ImageElement : PageElement
     /// </summary>
     public override IPageElement Clone()
     {
-        var clone = new ImageElement(ImageBase64)
+        var clone = new ImageElement(this.InternalMediator, this.Page, ImageBase64)
         {
             Name = Name,
             X = X,

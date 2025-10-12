@@ -8,11 +8,11 @@ public class DocumentsRepository(IMediator mediator) : IDocumentsRepository
 {
     private readonly Dictionary<Guid, Document> _documents = new();
 
-    public IReadOnlyCollection<Document> Documents => _documents.Values;
+    public IReadOnlyCollection<IDocument> Documents => _documents.Values;
 
-    public Document? Get(Guid id) => _documents.GetValueOrDefault(id);
+    public IDocument? Get(Guid id) => _documents.GetValueOrDefault(id);
 
-    public Document Create(string name)
+    public IDocument Create(string name)
     {
         var doc = new Document(mediator, name);
         _documents[doc.Id] = doc;

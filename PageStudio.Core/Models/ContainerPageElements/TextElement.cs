@@ -1,3 +1,4 @@
+using Mediator;
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models.Abstractions;
 using SkiaSharp;
@@ -12,6 +13,7 @@ public class TextElement : PageElement
     private const float FloatComparisonEpsilon = 0.01f;
 
     private string _text;
+
     /// <summary>
     /// The text content to display
     /// </summary>
@@ -30,6 +32,7 @@ public class TextElement : PageElement
     }
 
     private string _fontFamily;
+
     /// <summary>
     /// Font family name
     /// </summary>
@@ -48,6 +51,7 @@ public class TextElement : PageElement
     }
 
     private float _fontSize;
+
     /// <summary>
     /// Font size in points
     /// </summary>
@@ -66,6 +70,7 @@ public class TextElement : PageElement
     }
 
     private SKFontStyle _fontStyle;
+
     /// <summary>
     /// Font style (Normal, Bold, Italic, etc.)
     /// </summary>
@@ -99,8 +104,8 @@ public class TextElement : PageElement
     /// <param name="text">Initial text content</param>
     /// <param name="fontFamily">Font family name</param>
     /// <param name="fontSize">Font size in points</param>
-    public TextElement(string text = "Sample Text", string fontFamily = "Arial", float fontSize = 12.0f)
-        : base("Text Element")
+    public TextElement(IMediator mediator, IPage page, string text = "Sample Text", string fontFamily = "Arial", float fontSize = 12.0f)
+        : base(mediator, page, "Text Element")
     {
         _text = text;
         _fontFamily = fontFamily;
@@ -155,7 +160,7 @@ public class TextElement : PageElement
     /// <returns>Cloned text element</returns>
     public override IPageElement Clone()
     {
-        var clone = new TextElement(Text, FontFamily, FontSize)
+        var clone = new TextElement(this.InternalMediator, this.Page, Text, FontFamily, FontSize)
         {
             Name = Name,
             X = X,
@@ -215,11 +220,11 @@ public class TextElement : PageElement
     /// <param name="fontFamily">Font family name</param>
     /// <param name="fontSize">Font size in points</param>
     /// <param name="fontStyle">Font style</param>
-    public void UpdateFont(string fontFamily, float fontSize, SKFontStyle fontStyle = default)
+    public void UpdateFont(string fontFamily, float fontSize, SKFontStyle? fontStyle = null)
     {
         FontFamily = fontFamily;
         FontSize = fontSize;
-        FontStyle = fontStyle == default ? SKFontStyle.Normal : fontStyle;
+        FontStyle = fontStyle ?? SKFontStyle.Normal;
         UpdateSizeFromText();
         UpdateModifiedTime();
     }

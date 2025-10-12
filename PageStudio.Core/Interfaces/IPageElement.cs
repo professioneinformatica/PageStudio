@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Mediator;
 
 namespace PageStudio.Core.Interfaces;
 
@@ -11,7 +12,13 @@ public interface IPageElement
     /// Unique identifier for the element
     /// </summary>
     Guid Id { get; }
-    
+    protected IMediator InternalMediator { get; }
+
+    /// <summary>
+    /// Represents the page on which the element is placed.
+    /// </summary>
+    IPage Page { get; }
+
     /// <summary>
     /// Element name/title
     /// </summary>

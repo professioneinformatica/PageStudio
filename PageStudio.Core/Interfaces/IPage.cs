@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Mediator;
 
 namespace PageStudio.Core.Interfaces;
 
@@ -7,6 +8,9 @@ namespace PageStudio.Core.Interfaces;
 /// </summary>
 public interface IPage
 {
+    
+    IMediator InternalMediator { get; }
+    
     /// <summary>
     /// Unique identifier for the page
     /// </summary>

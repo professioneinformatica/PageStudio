@@ -1,3 +1,4 @@
+using Mediator;
 using PageStudio.Core.Interfaces;
 
 namespace PageStudio.Core.Models.ContainerPageElements;
@@ -7,15 +8,13 @@ namespace PageStudio.Core.Models.ContainerPageElements;
 /// </summary>
 public class Layer : GroupElement, ILayer
 {
-    
     /// <summary>
     /// Initializes a new instance of Layer
     /// </summary>
     /// <param name="name">Layer name</param>
     /// <param name="zOrder">Layer Z-index</param>
-    public Layer(string name = "Layer", int zOrder = 0) : base(name)
+    public Layer(IMediator mediator, IPage page, string name = "Layer", int zOrder = 0) : base(mediator, page, name)
     {
         ZOrder = zOrder;
     }
-    
 }

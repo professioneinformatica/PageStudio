@@ -28,9 +28,9 @@ namespace PageStudio.Core.Services
         public float PageSpacing { get; set; } = 20f;
 
         public readonly ZoomManager ZoomManager = new();
-        private Document? _currentDocument;
+        private IDocument? _currentDocument;
 
-        public Document? CurrentDocument
+        public IDocument? CurrentDocument
         {
             get => _currentDocument;
             set
@@ -117,7 +117,7 @@ namespace PageStudio.Core.Services
             return null;
         }
 
-        public (IPage? page, IPageElement? element) HitTest(Document document, double canvasX, double canvasY)
+        public (IPage? page, IPageElement? element) HitTest(IDocument document, double canvasX, double canvasY)
         {
             var (page, pageOffsetX, pageOffsetY) = GetPageAtPosition(canvasX, canvasY);
             if (page != null)
