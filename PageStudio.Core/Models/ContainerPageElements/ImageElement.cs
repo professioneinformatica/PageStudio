@@ -18,8 +18,7 @@ public class ImageElement : PageElement
     /// <summary>
     /// Bitmap decodificata (non serializzata)
     /// </summary>
-    [NonSerialized]
-    private SKBitmap? _bitmap;
+    [NonSerialized] private SKBitmap? _bitmap;
 
     /// <summary>
     /// Costruttore
@@ -28,8 +27,7 @@ public class ImageElement : PageElement
     public ImageElement(string? imageBase64 = null) : base("Image Element")
     {
         ImageBase64 = imageBase64;
-        Width = 200;
-        Height = 150;
+        SetDimension(200, 150);
 
         if (!string.IsNullOrEmpty(imageBase64))
             LoadBitmapFromBase64(imageBase64);
@@ -48,14 +46,14 @@ public class ImageElement : PageElement
             _bitmap = SKBitmap.Decode(bytes);
             if (_bitmap != null)
             {
-                Width = _bitmap.Width;
-                Height = _bitmap.Height;
+                SetDimension(_bitmap.Width, _bitmap.Height);
             }
         }
         catch
         {
             _bitmap = null;
         }
+
         UpdateModifiedTime();
     }
 
@@ -84,14 +82,13 @@ public class ImageElement : PageElement
             Name = Name,
             X = X,
             Y = Y,
-            Width = Width,
-            Height = Height,
             Rotation = Rotation,
             Opacity = Opacity,
             IsVisible = IsVisible,
             IsLocked = IsLocked,
             ZOrder = ZOrder
         };
+        clone.SetDimension(this.Width, this.Height);
         return clone;
     }
 }

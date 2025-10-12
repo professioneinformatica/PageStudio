@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using PageStudio.Core.Models;
+using PageStudio.Core.Models.Documents;
 
 namespace PageStudio.Web.Client.Components;
 

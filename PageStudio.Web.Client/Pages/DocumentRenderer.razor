@@ -118,11 +118,11 @@
                             <div class="d-flex align-items-center gap-2">
                                 <span class="text-muted small">Modalità:</span>
                                 <div class="btn-group btn-group-sm" role="group">
-                                    <button class="btn @(_interactionMode == InteractionMode.Selection ? "btn-primary" : "btn-outline-primary") btn-sm"
+                                    <button class="btn @(this._canvasInteractor.ActiveTool == CanvasDocumentInteractor.InteractionMode.Selection ? "btn-primary" : "btn-outline-primary") btn-sm"
                                             @onclick="SetSelectionMode" title="Seleziona oggetti">
                                         <i class="bi bi-cursor"></i>
                                     </button>
-                                    <button class="btn @(_interactionMode == InteractionMode.Pan ? "btn-primary" : "btn-outline-primary") btn-sm"
+                                    <button class="btn @(this._canvasInteractor.ActiveTool == CanvasDocumentInteractor.InteractionMode.Pan ? "btn-primary" : "btn-outline-primary") btn-sm"
                                             @onclick="SetPanMode" title="Pan (trascina canvas)">
                                         <i class="bi bi-arrows-move"></i>
                                     </button>
@@ -155,7 +155,7 @@
             <div class="card-body">
                 @if (_canvasInteractor.CurrentDocument != null && _isRendered)
                 {
-                    <SKCanvasView @ref="_canvasView"
+                    <SKCanvasView @ref="_canvasView" IgnorePixelScaling="true"
                                   OnPaintSurface="OnPaintSurface"
                                   @onpointerdown="@OnPointerDown"
                                   @onpointermove="@OnPointerMove"

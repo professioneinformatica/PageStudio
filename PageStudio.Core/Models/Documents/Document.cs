@@ -1,8 +1,8 @@
-using System.Collections.Generic;
 using Ardalis.GuardClauses;
+using Mediator;
 using PageStudio.Core.Interfaces;
 
-namespace PageStudio.Core.Models;
+namespace PageStudio.Core.Models.Documents;
 
 /// <summary>
 /// Unit of measure enumeration for document dimensions
@@ -19,6 +19,7 @@ public enum UnitOfMeasure
 public class Document : IDocument
 {
     private readonly List<IPage> _pages;
+    private readonly IMediator _mediator;
 
     /// <summary>
     /// Unique identifier for the document
@@ -68,9 +69,11 @@ public class Document : IDocument
     /// <summary>
     /// Initializes a new instance of Document
     /// </summary>
+    /// <param name="mediator"></param>
     /// <param name="name">Document name</param>
-    public Document(string name = "New Document")
+    public Document(IMediator mediator, string name = "New Document")
     {
+        _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
         Id = Guid.CreateVersion7();
         Name = name;
         _pages = new List<IPage>();
@@ -96,7 +99,8 @@ public class Document : IDocument
     /// Adds a new page to the document
     /// </summary>
     /// <param name="page">Page to add</param>
-    public void AddPage(IPage page, int? insertIndex)
+    /// <param name="insertIndex">The index where you want to add the page. If not specified is appended to the end of the document.</param>
+    public async Task AddPage(IPage page, int? insertIndex)
     {
         ArgumentNullException.ThrowIfNull(page);
 
@@ -108,8 +112,10 @@ public class Document : IDocument
         {
             insertIndex = _pages.Count;
         }
+
         _pages.Insert(insertIndex.Value, page);
         UpdateModifiedTime();
+        await _mediator.Publish(new AddPageRequest(page, insertIndex.Value));
     }
 
     /// <summary>
@@ -117,14 +123,16 @@ public class Document : IDocument
     /// </summary>
     /// <param name="pageId">ID of the page to remove</param>
     /// <returns>True if page was removed, false otherwise</returns>
-    public bool RemovePage(Guid pageId)
+    public async Task<bool> RemovePage(Guid pageId)
     {
         var page = _pages.FirstOrDefault(p => p.Id == pageId);
         Guard.Against.Null(page);
 
         var removed = _pages.Remove(page);
         if (removed)
+        {
             UpdateModifiedTime();
+        }
 
         return removed;
     }
@@ -148,7 +156,7 @@ public class Document : IDocument
     /// <returns>The page if found, null otherwise</returns>
     public IPage? GetPageByIndex(int index)
     {
-        Guard.Against.OutOfRange(index, nameof(index), 0, _pages.Count); 
+        Guard.Against.OutOfRange(index, nameof(index), 0, _pages.Count);
 
         return _pages[index];
     }
@@ -180,7 +188,7 @@ public class Document : IDocument
     /// <param name="fromIndex">Current index of the page</param>
     /// <param name="toIndex">New index for the page</param>
     /// <returns>True if page was moved successfully</returns>
-    public bool MovePage(int fromIndex, int toIndex)
+    public async Task<bool> MovePage(int fromIndex, int toIndex)
     {
         if (fromIndex < 0 || fromIndex >= _pages.Count ||
             toIndex < 0 || toIndex >= _pages.Count ||
@@ -191,7 +199,6 @@ public class Document : IDocument
         _pages.RemoveAt(fromIndex);
         _pages.Insert(toIndex, page);
         UpdateModifiedTime();
-
         return true;
     }
 
@@ -243,23 +250,42 @@ public class Document : IDocument
         ModifiedAt = DateTime.UtcNow;
     }
 
-    public void AddPages(PageFormat pageFormat, int numberOfPagesToAdd, int? startPage = null)
+    public async Task<List<IPage>> AddPages(PageFormat pageFormat, int numberOfPagesToAdd, int? startPage = null)
     {
         if (!startPage.HasValue)
         {
             startPage = Pages.Count();
         }
-        
+
+        var emptyDocument = Pages.Count == 0;
+        var addedPages = new List<IPage>();
+
         for (int i = 0; i < numberOfPagesToAdd; i++)
         {
-            var page = new Page
+            var page = new Page(this)
             {
                 Width = pageFormat.ActualWidth,
                 Height = pageFormat.ActualHeight,
-                Name = $"Page {Pages.Count() + 1}"
+                Name = $"Page {Pages.Count() + 1}",
+                IsActive = emptyDocument // set the IsActive flag to true if this is the first page added to the document
             };
-            this.AddPage(page, startPage.Value + i);
-            // Se è la prima pagina aggiunta, selezionala
+            addedPages.Add(page);
+            await this.AddPage(page, startPage.Value + i);
+        }
+
+        return addedPages;
+    }
+
+    /// <summary>
+    /// Imposta la pagina attiva tramite il suo ID. Solo una pagina per volta può essere attiva.
+    /// </summary>
+    /// <param name="pageId">ID della pagina da attivare</param>
+    public async Task SetActivePage(Guid pageId)
+    {
+        foreach (var page in _pages)
+        {
+            var concretePage = page as Page;
+            concretePage.IsActive = page.Id == pageId;
         }
     }
 }

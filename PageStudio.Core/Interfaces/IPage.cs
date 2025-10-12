@@ -11,7 +11,12 @@ public interface IPage
     /// Unique identifier for the page
     /// </summary>
     Guid Id { get; }
-    
+
+    /// <summary>
+    /// The document associated with the page.
+    /// </summary>
+    IDocument Document { get; }
+
     /// <summary>
     /// Page name/title
     /// </summary>
@@ -53,6 +58,11 @@ public interface IPage
     DateTime ModifiedAt { get; set; }
     
     /// <summary>
+    /// Indica se la pagina è attiva
+    /// </summary>
+    public bool IsActive { get; }
+    
+    /// <summary>
     /// Adds a layer to the page
     /// </summary>
     /// <param name="layer">Layer to add</param>
@@ -83,12 +93,12 @@ public interface IPage
     /// </summary>
     /// <returns>The default layer</returns>
     ILayer GetDefaultLayer();
-    
+
     /// <summary>
     /// Adds an element to the default layer
     /// </summary>
     /// <param name="element">Element to add</param>
-    void AddElement(IPageElement element);
+    IPageElement AddElement(IPageElement element);
     
     /// <summary>
     /// Adds an element to a specific layer

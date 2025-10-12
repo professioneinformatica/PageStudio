@@ -46,6 +46,12 @@ public interface IPageElement
     /// Indicates whether the aspect ratio of the element should remain constant when resizing.
     /// </summary>
     public bool LockAspectRatio { get; set; }
+
+    /// <summary>
+    /// Represents the ratio of the width to the height of the element,
+    /// calculated as Width divided by Height.
+    /// </summary>
+    public double AspectRatio { get; }
     
     /// <summary>
     /// Element opacity (0.0 to 1.0)

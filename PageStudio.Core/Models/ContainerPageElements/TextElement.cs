@@ -9,31 +9,85 @@ namespace PageStudio.Core.Models.ContainerPageElements;
 /// </summary>
 public class TextElement : PageElement
 {
+    private const float FloatComparisonEpsilon = 0.01f;
+
+    private string _text;
     /// <summary>
     /// The text content to display
     /// </summary>
-    public string Text { get; set; }
-    
+    public string Text
+    {
+        get => _text;
+        set
+        {
+            if (_text != value)
+            {
+                _text = value;
+                UpdateSizeFromText();
+                UpdateModifiedTime();
+            }
+        }
+    }
+
+    private string _fontFamily;
     /// <summary>
     /// Font family name
     /// </summary>
-    public string FontFamily { get; set; }
-    
+    public string FontFamily
+    {
+        get => _fontFamily;
+        set
+        {
+            if (_fontFamily != value)
+            {
+                _fontFamily = value;
+                UpdateSizeFromText();
+                UpdateModifiedTime();
+            }
+        }
+    }
+
+    private float _fontSize;
     /// <summary>
     /// Font size in points
     /// </summary>
-    public float FontSize { get; set; }
-    
+    public float FontSize
+    {
+        get => _fontSize;
+        set
+        {
+            if (System.Math.Abs(_fontSize - value) > FloatComparisonEpsilon)
+            {
+                _fontSize = value;
+                UpdateSizeFromText();
+                UpdateModifiedTime();
+            }
+        }
+    }
+
+    private SKFontStyle _fontStyle;
     /// <summary>
     /// Font style (Normal, Bold, Italic, etc.)
     /// </summary>
-    public SKFontStyle FontStyle { get; set; }
-    
+    public SKFontStyle FontStyle
+    {
+        get => _fontStyle;
+        set
+        {
+            if (_fontStyle != value)
+            {
+                _fontStyle = value;
+                UpdateSizeFromText();
+                UpdateModifiedTime();
+            }
+        }
+    }
+
     /// <summary>
     /// Text color
     /// </summary>
     public SKColor TextColor { get; set; }
-    
+
     /// <summary>
     /// Text alignment
     /// </summary>
@@ -45,16 +99,16 @@ public class TextElement : PageElement
     /// <param name="text">Initial text content</param>
     /// <param name="fontFamily">Font family name</param>
     /// <param name="fontSize">Font size in points</param>
-    public TextElement(string text = "Sample Text", string fontFamily = "Arial", float fontSize = 12.0f) 
+    public TextElement(string text = "Sample Text", string fontFamily = "Arial", float fontSize = 12.0f)
         : base("Text Element")
     {
-        Text = text;
-        FontFamily = fontFamily;
-        FontSize = fontSize;
-        FontStyle = SKFontStyle.Normal;
+        _text = text;
+        _fontFamily = fontFamily;
+        _fontSize = fontSize;
+        _fontStyle = SKFontStyle.Normal;
         TextColor = SKColors.Black;
         TextAlign = SKTextAlign.Left;
-        
+
         // Set default size based on text
         UpdateSizeFromText();
     }
@@ -72,7 +126,6 @@ public class TextElement : PageElement
         using var textPaint = new SKPaint
         {
             Color = TextColor,
-            TextSize = FontSize,
             IsAntialias = true,
             TextAlign = TextAlign
         };
@@ -82,7 +135,7 @@ public class TextElement : PageElement
         using var font = new SKFont(typeface, FontSize);
 
         // Calculate text position based on alignment
-        float x = TextAlign switch
+        var x = TextAlign switch
         {
             SKTextAlign.Center => (float)Width / 2,
             SKTextAlign.Right => (float)Width,
@@ -91,8 +144,8 @@ public class TextElement : PageElement
 
         // Draw the text at the calculated position
         // Y position is adjusted to account for font baseline
-        float y = FontSize; // Simple baseline calculation
-        
+        var y = FontSize; // Simple baseline calculation
+
         graphics.DrawText(Text, x, y, textPaint, font, TextAlign);
     }
 
@@ -130,24 +183,19 @@ public class TextElement : PageElement
         if (string.IsNullOrEmpty(Text))
         {
             Width = 100;
-            Height = FontSize * 1.2; // Default height with some padding
+            Height = FontSize;
             return;
         }
 
         // Create temporary paint to measure text
-        using var paint = new SKPaint
-        {
-            TextSize = FontSize
-        };
-
+        using var paint = new SKPaint();
         using var typeface = SKTypeface.FromFamilyName(FontFamily, FontStyle);
         using var font = new SKFont(typeface, FontSize);
 
-        var textBounds = new SKRect();
-        paint.MeasureText(Text, ref textBounds);
+        font.MeasureText(Text, out var textBounds, paint);
 
-        Width = Math.Max(textBounds.Width + 10, 50); // Add some padding
-        Height = Math.Max(FontSize * 1.2, 20); // Height based on font size with padding
+        Width = textBounds.Width;
+        Height = textBounds.Height;
     }
 
     /// <summary>

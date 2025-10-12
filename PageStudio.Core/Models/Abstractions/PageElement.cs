@@ -29,15 +29,49 @@ public abstract class PageElement : IPageElement
     /// </summary>
     public double Y { get; set; }
 
+    private double _width;
+
     /// <summary>
     /// Width of the element
     /// </summary>
-    public double Width { get; set; }
+    public double Width
+    {
+        get => _width;
+        set
+        {
+            if (this.LockAspectRatio)
+            {
+                this._height = Math.Round(value / this.AspectRatio);
+            }
 
+            _width = value;
+        }
+    }
+
+    protected void SetDimension(double width, double height)
+    {
+        _width = width;
+        _height = height;
+    }
+    
+    private double _height;
+    
     /// <summary>
     /// Height of the element
     /// </summary>
-    public double Height { get; set; }
+    public double Height
+    {
+        get => _height;
+        set
+        {
+            if (this.LockAspectRatio)
+            {
+                this._width = Math.Round(value * this.AspectRatio);
+            }
+
+            _height = value;
+        }
+    }
 
     /// <summary>
     /// Rotation angle in degrees
@@ -83,6 +117,11 @@ public abstract class PageElement : IPageElement
     /// Indicates whether the aspect ratio of the element should be maintained during resizing
     /// </summary>
     public bool LockAspectRatio { get; set; }
+
+    /// <summary>
+    /// Aspect ratio of the element
+    /// </summary>
+    public double AspectRatio => Width / Height;
 
     /// <summary>
     /// Collection of child elements
@@ -147,19 +186,20 @@ public abstract class PageElement : IPageElement
     private SKRect[] handleRects = new SKRect[8]; // 8 handle: 4 angoli, 4 lati
     private readonly float HandleSize = 10f;
     private readonly float HandleHitTestSize = 16f;
-    
+
     public int? HitTestHandle(double canvasX, double canvasY)
     {
         for (int i = 0; i < handleRects.Length; i++)
         {
             var rect = handleRects[i];
-            var hitRect = new SKRect(rect.Left - HandleHitTestSize/2, rect.Top - HandleHitTestSize/2, rect.Right + HandleHitTestSize/2, rect.Bottom + HandleHitTestSize/2);
+            var hitRect = new SKRect(rect.Left - HandleHitTestSize / 2, rect.Top - HandleHitTestSize / 2, rect.Right + HandleHitTestSize / 2, rect.Bottom + HandleHitTestSize / 2);
             if (hitRect.Contains((float)canvasX, (float)canvasY))
                 return i;
         }
+
         return null;
     }
-    
+
     /// <summary>
     /// Core rendering implementation - renders self, then children
     /// </summary>
@@ -189,20 +229,20 @@ public abstract class PageElement : IPageElement
                     PathEffect = SkiaSharp.SKPathEffect.CreateDash(new float[] { 3, 3 }, 0)
                 };
                 canvas.DrawRect(0, 0, (float)Width, (float)Height, selectionPaint);
-                
+
                 var x = 0f;
                 var y = 0f;
                 var w = (float)this.Width;
                 var h = (float)this.Height;
                 // Calcola le posizioni degli 8 handle
-                handleRects[0] = new SKRect(x - HandleSize/2, y - HandleSize/2, x + HandleSize/2, y + HandleSize/2); // top-left
-                handleRects[1] = new SKRect(x + w/2 - HandleSize/2, y - HandleSize/2, x + w/2 + HandleSize/2, y + HandleSize/2); // top
-                handleRects[2] = new SKRect(x + w - HandleSize/2, y - HandleSize/2, x + w + HandleSize/2, y + HandleSize/2); // top-right
-                handleRects[3] = new SKRect(x + w - HandleSize/2, y + h/2 - HandleSize/2, x + w + HandleSize/2, y + h/2 + HandleSize/2); // right
-                handleRects[4] = new SKRect(x + w - HandleSize/2, y + h - HandleSize/2, x + w + HandleSize/2, y + h + HandleSize/2); // bottom-right
-                handleRects[5] = new SKRect(x + w/2 - HandleSize/2, y + h - HandleSize/2, x + w/2 + HandleSize/2, y + h + HandleSize/2); // bottom
-                handleRects[6] = new SKRect(x - HandleSize/2, y + h - HandleSize/2, x + HandleSize/2, y + h + HandleSize/2); // bottom-left
-                handleRects[7] = new SKRect(x - HandleSize/2, y + h/2 - HandleSize/2, x + HandleSize/2, y + h/2 + HandleSize/2); // left
+                handleRects[0] = new SKRect(x - HandleSize / 2, y - HandleSize / 2, x + HandleSize / 2, y + HandleSize / 2); // top-left
+                handleRects[1] = new SKRect(x + w / 2 - HandleSize / 2, y - HandleSize / 2, x + w / 2 + HandleSize / 2, y + HandleSize / 2); // top
+                handleRects[2] = new SKRect(x + w - HandleSize / 2, y - HandleSize / 2, x + w + HandleSize / 2, y + HandleSize / 2); // top-right
+                handleRects[3] = new SKRect(x + w - HandleSize / 2, y + h / 2 - HandleSize / 2, x + w + HandleSize / 2, y + h / 2 + HandleSize / 2); // right
+                handleRects[4] = new SKRect(x + w - HandleSize / 2, y + h - HandleSize / 2, x + w + HandleSize / 2, y + h + HandleSize / 2); // bottom-right
+                handleRects[5] = new SKRect(x + w / 2 - HandleSize / 2, y + h - HandleSize / 2, x + w / 2 + HandleSize / 2, y + h + HandleSize / 2); // bottom
+                handleRects[6] = new SKRect(x - HandleSize / 2, y + h - HandleSize / 2, x + HandleSize / 2, y + h + HandleSize / 2); // bottom-left
+                handleRects[7] = new SKRect(x - HandleSize / 2, y + h / 2 - HandleSize / 2, x + HandleSize / 2, y + h / 2 + HandleSize / 2); // left
 
                 var handlePaint = new SKPaint { Color = SKColors.White, Style = SKPaintStyle.Fill };
                 var handleBorder = new SKPaint { Color = SKColors.DeepSkyBlue, Style = SKPaintStyle.Stroke, StrokeWidth = 2 };
@@ -211,7 +251,6 @@ public abstract class PageElement : IPageElement
                     canvas.DrawRect(handleRects[i], handlePaint);
                     canvas.DrawRect(handleRects[i], handleBorder);
                 }
-
             }
             // Se in futuro ci sono altri backend, aggiungere qui il supporto
         }
@@ -327,14 +366,9 @@ public abstract class PageElement : IPageElement
         _children.Clear();
         UpdateModifiedTime();
     }
-
+    
     /// <summary>
     /// Indicates if the element is currently selected (for UI rendering, e.g. border highlight)
     /// </summary>
-    private bool _isSelected;
-    public virtual bool IsSelected
-    {
-        get => _isSelected;
-        set => _isSelected = value;
-    }
+    public virtual bool IsSelected { get; set; }
 }

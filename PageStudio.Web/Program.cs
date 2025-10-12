@@ -1,11 +1,27 @@
+using Mediator;
 using PageStudio.Web.Components;
 
-public class Program
+namespace PageStudio.Web;
+
+public static class Program
 {
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
+        builder.Services.AddMediator(
+            (MediatorOptions options) =>
+            {
+                options.Assemblies = [typeof(PageStudio.Web.Program), 
+                    typeof(PageStudio.Web.Client.Program),
+                    typeof(PageStudio.Core.Interfaces.IDocument)
+                ];
+                options.GenerateTypesAsInternal = true;
+            }
+        );
+
+        builder.Services.AddPageStudioCoreServices();
+        
 // Add services to the container.
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents()

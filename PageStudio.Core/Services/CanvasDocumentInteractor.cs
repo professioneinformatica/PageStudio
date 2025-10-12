@@ -3,6 +3,8 @@ using PageStudio.Core.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Ardalis.GuardClauses;
+using PageStudio.Core.Models.Documents;
 
 namespace PageStudio.Core.Services
 {
@@ -11,10 +13,15 @@ namespace PageStudio.Core.Services
         Vertical,
         SideBySide
     }
-    
+
     public class CanvasDocumentInteractor
     {
-        
+        public enum InteractionMode
+        {
+            Selection,
+            Pan
+        }
+
         public float PanOffsetX { get; set; } = 0f;
         public float PanOffsetY { get; set; } = 0f;
         public LayoutMode CurrentLayoutMode { get; set; } = LayoutMode.Vertical;
@@ -52,13 +59,16 @@ namespace PageStudio.Core.Services
         }
 
         public int? SelectedPageIndex { get; set; }
+        public InteractionMode ActiveTool { get; set; } = InteractionMode.Selection;
 
-        public (IPage? page, double pageOffsetX, double pageOffsetY) GetPageAtPosition(Document document, double canvasX, double canvasY)
+        public (IPage? page, double pageOffsetX, double pageOffsetY) GetPageAtPosition(double canvasX, double canvasY)
         {
+            Guard.Against.Null(this.CurrentDocument);
+            
             double yOffset = 0;
             if (CurrentLayoutMode == LayoutMode.Vertical)
             {
-                foreach (var page in document.Pages)
+                foreach (var page in this.CurrentDocument.Pages)
                 {
                     if (canvasY >= yOffset && canvasY < yOffset + page.Height)
                         return (page, 0, yOffset);
@@ -67,7 +77,7 @@ namespace PageStudio.Core.Services
             }
             else // SideBySide
             {
-                var pages = document.Pages.ToList();
+                var pages = this.CurrentDocument.Pages.ToList();
                 yOffset = 0;
                 double maxPageHeight = 0;
                 for (int i = 0; i < pages.Count; i++)
@@ -109,7 +119,7 @@ namespace PageStudio.Core.Services
 
         public (IPage? page, IPageElement? element) HitTest(Document document, double canvasX, double canvasY)
         {
-            var (page, pageOffsetX, pageOffsetY) = GetPageAtPosition(document, canvasX, canvasY);
+            var (page, pageOffsetX, pageOffsetY) = GetPageAtPosition(canvasX, canvasY);
             if (page != null)
             {
                 var element = HitTestElement(page, canvasX - pageOffsetX, canvasY - pageOffsetY);

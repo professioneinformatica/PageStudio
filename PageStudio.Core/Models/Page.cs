@@ -16,55 +16,61 @@ public class Page : IPage
     /// Unique identifier for the page
     /// </summary>
     public Guid Id { get; }
-    
+
     /// <summary>
     /// Page name/title
     /// </summary>
     public string Name { get; set; }
-    
+
     /// <summary>
     /// Page width in points
     /// </summary>
     public double Width { get; set; }
-    
+
     /// <summary>
     /// Page height in points
     /// </summary>
     public double Height { get; set; }
-    
+
     /// <summary>
     /// Page margins
     /// </summary>
     public IMargins Margins { get; set; }
-    
+
     /// <summary>
     /// Collection of layers on this page
     /// </summary>
     public IList<ILayer> Layers => _layers;
-    
+
     /// <summary>
     /// Page background color or pattern
     /// </summary>
     public object? Background { get; set; }
-    
+
     /// <summary>
     /// Page creation timestamp
     /// </summary>
     public DateTime CreatedAt { get; }
-    
+
     /// <summary>
     /// Last modification timestamp
     /// </summary>
     public DateTime ModifiedAt { get; set; }
 
+    public bool IsActive { get; internal set; }
+
+    public IDocument Document { get; init; }
+
     /// <summary>
     /// Initializes a new instance of Page
     /// </summary>
+    /// <param name="document">Reference to the containing document</param>
     /// <param name="name">Page name</param>
     /// <param name="width">Page width in points</param>
     /// <param name="height">Page height in points</param>
-    public Page(string name = "Page", double width = 595, double height = 842) // A4 size by default
+    public Page(IDocument document, string name = "Page", double width = 595, double height = 842) // A4 size by default
     {
+        Document = document;
         Id = Guid.CreateVersion7();
         Name = name;
         Width = width;
@@ -74,7 +80,8 @@ public class Page : IPage
         Background = null;
         CreatedAt = DateTime.UtcNow;
         ModifiedAt = DateTime.UtcNow;
-        
+        IsActive = false;
+
         // Create and add default layer
         _defaultLayer = new Layer("Default Layer", 0);
         _layers.Add(_defaultLayer);
@@ -157,13 +164,14 @@ public class Page : IPage
     /// Adds an element to the default layer
     /// </summary>
     /// <param name="element">Element to add</param>
-    public void AddElement(IPageElement element)
+    public IPageElement AddElement(IPageElement element)
     {
         if (element == null)
             throw new ArgumentNullException(nameof(element));
 
         _defaultLayer.AddChildren(element);
         UpdateModifiedTime();
+        return element;
     }
 
     /// <summary>
@@ -233,7 +241,7 @@ public class Page : IPage
     public IEnumerable<IPageElement> GetAllElementsByRenderOrder()
     {
         var result = new List<IPageElement>();
-        
+
         // Process layers by their Z-index (lowest to highest)
         foreach (var layer in GetLayersByZIndex())
         {
@@ -265,7 +273,7 @@ public class Page : IPage
     public IEnumerable<IPageElement> GetElementsAtPosition(double x, double y)
     {
         var result = new List<IPageElement>();
-        
+
         foreach (var layer in _layers)
         {
             if (layer.IsVisible)
