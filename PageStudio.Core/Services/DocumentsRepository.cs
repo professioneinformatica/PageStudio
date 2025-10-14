@@ -1,10 +1,9 @@
-using Mediator;
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models.Documents;
 
 namespace PageStudio.Core.Services;
 
-public class DocumentsRepository(IMediator mediator) : IDocumentsRepository
+public class DocumentsRepository() : IDocumentsRepository
 {
     private readonly Dictionary<Guid, Document> _documents = new();
 
@@ -14,7 +13,7 @@ public class DocumentsRepository(IMediator mediator) : IDocumentsRepository
 
     public IDocument Create(string name)
     {
-        var doc = new Document(mediator, name);
+        var doc = new Document(name);
         _documents[doc.Id] = doc;
         return doc;
     }

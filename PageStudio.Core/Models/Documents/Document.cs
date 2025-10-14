@@ -1,5 +1,4 @@
 using Ardalis.GuardClauses;
-using Mediator;
 using PageStudio.Core.Interfaces;
 
 namespace PageStudio.Core.Models.Documents;
@@ -19,7 +18,6 @@ public enum UnitOfMeasure
 public class Document : IDocument
 {
     private readonly List<IPage> _pages;
-    private readonly IMediator _mediator;
 
     /// <summary>
     /// Unique identifier for the document
@@ -71,9 +69,8 @@ public class Document : IDocument
     /// </summary>
     /// <param name="mediator"></param>
     /// <param name="name">Document name</param>
-    public Document(IMediator mediator, string name = "New Document")
+    public Document(string name = "New Document")
     {
-        _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
         Id = Guid.CreateVersion7();
         Name = name;
         _pages = new List<IPage>();
@@ -115,7 +112,6 @@ public class Document : IDocument
 
         _pages.Insert(insertIndex.Value, page);
         UpdateModifiedTime();
-        await _mediator.Publish(new AddPageRequest(page, insertIndex.Value));
     }
 
     /// <summary>
@@ -133,6 +129,7 @@ public class Document : IDocument
         {
             UpdateModifiedTime();
         }
+
         return await Task.FromResult(removed);
     }
 
@@ -261,7 +258,7 @@ public class Document : IDocument
 
         for (int i = 0; i < numberOfPagesToAdd; i++)
         {
-            var page = new Page(this._mediator, this)
+            var page = new Page(this)
             {
                 Width = pageFormat.ActualWidth,
                 Height = pageFormat.ActualHeight,
@@ -283,9 +280,10 @@ public class Document : IDocument
     {
         foreach (var page in _pages)
         {
-            var concretePage = (Page)page ;
+            var concretePage = (Page)page;
             concretePage.IsActive = page.Id == pageId;
         }
+
         await Task.CompletedTask;
     }
 }

@@ -1,4 +1,3 @@
-using Mediator;
 using PageStudio.Core.Graphics;
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models;
@@ -7,14 +6,12 @@ using SkiaSharp.Views.Blazor;
 using Microsoft.AspNetCore.Components.Web;
 using PageStudio.Core.Models.ContainerPageElements;
 using Microsoft.FluentUI.AspNetCore.Components;
-using PageStudio.Core.Models.Documents;
 using PageStudio.Core.Services;
 
 namespace PageStudio.Web.Client.Pages;
 
 public partial class DocumentRenderer
 {
-    private readonly IMediator _mediator;
     private readonly ILogger<DocumentRenderer> _logger;
     private readonly IDocumentsRepository _documentsRepository;
     private SKCanvasView? _canvasView;
@@ -23,9 +20,8 @@ public partial class DocumentRenderer
 
     private readonly CanvasDocumentInteractor _canvasInteractor = new();
 
-    public DocumentRenderer(IMediator mediator, ILogger<DocumentRenderer> logger, IDocumentsRepository documentsRepository)
+    public DocumentRenderer(ILogger<DocumentRenderer> logger, IDocumentsRepository documentsRepository)
     {
-        _mediator = mediator;
         _logger = logger;
         _documentsRepository = documentsRepository;
         _canvasInteractor.ZoomManager.ZoomChanged += OnZoomChanged;
@@ -112,7 +108,7 @@ public partial class DocumentRenderer
 
         foreach (var page in addedPages)
         {
-            var title = page.AddElement(new TextElement(this._mediator, page)
+            var title = page.AddElement(new TextElement(page)
             {
                 Text = $"Page Name: {page.Name}",
                 FontFamily = "Arial",
@@ -122,7 +118,7 @@ public partial class DocumentRenderer
                 Y = 10
             });
 
-            page.AddElement(new TextElement(this._mediator, page)
+            page.AddElement(new TextElement(page)
             {
                 Text = $"Page Size: {page.Width} x {page.Height}",
                 FontFamily = "Arial",
@@ -235,7 +231,7 @@ public partial class DocumentRenderer
             return;
 
 
-        var textElement = new TextElement(this._mediator, _canvasInteractor.SelectedPage, request.TextContent, request.FontFamily, request.FontSize)
+        var textElement = new TextElement(_canvasInteractor.SelectedPage, request.TextContent, request.FontFamily, request.FontSize)
         {
             X = 50,
             Y = 50,
@@ -725,7 +721,7 @@ public partial class DocumentRenderer
         using var ms = new MemoryStream();
         await file.Stream.CopyToAsync(ms);
         var base64 = Convert.ToBase64String(ms.ToArray());
-        var imageElement = new ImageElement(this._mediator, _canvasInteractor.SelectedPage, base64)
+        var imageElement = new ImageElement(_canvasInteractor.SelectedPage, base64)
         {
             X = 50,
             Y = 50

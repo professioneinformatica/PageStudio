@@ -1,4 +1,3 @@
-using Mediator;
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models.Abstractions;
 
@@ -25,7 +24,7 @@ public class GroupElement : PageElement
     /// <param name="page"></param>
     /// <param name="name">Container name</param>
     /// <param name="mediator"></param>
-    public GroupElement(IMediator mediator, IPage page, string name = "Container") : base(mediator, page, name)
+    public GroupElement(IPage page, string name = "Container") : base(page, name)
     {
     }
 
@@ -44,7 +43,7 @@ public class GroupElement : PageElement
     /// <returns>Cloned container element</returns>
     public override IPageElement Clone()
     {
-        var clone = new GroupElement(this.InternalMediator, this.Page, Name)
+        var clone = new GroupElement(this.Page, Name)
         {
             X = X,
             Y = Y,

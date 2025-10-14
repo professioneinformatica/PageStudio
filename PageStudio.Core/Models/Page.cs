@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using Mediator;
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models.ContainerPageElements;
 
@@ -10,10 +8,8 @@ namespace PageStudio.Core.Models;
 /// </summary>
 public class Page : IPage
 {
-    public IMediator InternalMediator { get; init; }
-
     private readonly List<ILayer> _layers;
-    private ILayer _defaultLayer;
+    private readonly ILayer _defaultLayer;
 
     /// <summary>
     /// Unique identifier for the page
@@ -67,14 +63,12 @@ public class Page : IPage
     /// <summary>
     /// Initializes a new instance of Page
     /// </summary>
-    /// <param name="mediator"></param>
     /// <param name="document">Reference to the containing document</param>
     /// <param name="name">Page name</param>
     /// <param name="width">Page width in points</param>
     /// <param name="height">Page height in points</param>
-    public Page(IMediator mediator, IDocument document, string name = "Page", double width = 595, double height = 842) // A4 size by default
+    public Page(IDocument document, string name = "Page", double width = 595, double height = 842) // A4 size by default
     {
-        InternalMediator = mediator;
         Document = document;
         Id = Guid.CreateVersion7();
         Name = name;
@@ -88,7 +82,7 @@ public class Page : IPage
         IsActive = false;
 
         // Create and add default layer
-        _defaultLayer = new Layer(this.InternalMediator, this, "Default Layer", 0);
+        _defaultLayer = new Layer(this, "Default Layer");
         _layers.Add(_defaultLayer);
     }
 
@@ -106,6 +100,7 @@ public class Page : IPage
             throw new InvalidOperationException($"Layer with ID '{layer.Id}' already exists on this page.");
 
         _layers.Add(layer);
+
         UpdateModifiedTime();
     }
 

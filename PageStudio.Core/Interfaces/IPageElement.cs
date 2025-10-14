@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using Mediator;
 
 namespace PageStudio.Core.Interfaces;
 
@@ -12,7 +10,6 @@ public interface IPageElement
     /// Unique identifier for the element
     /// </summary>
     Guid Id { get; }
-    protected IMediator InternalMediator { get; }
 
     /// <summary>
     /// Represents the page on which the element is placed.
@@ -132,7 +129,7 @@ public interface IPageElement
     /// </summary>
     /// <param name="elementId">Element ID</param>
     /// <returns>The element if found, null otherwise</returns>
-    IPageElement GetChildren(Guid elementId);
+    IPageElement? GetChildren(Guid elementId);
     
     /// <summary>
     /// Gets elements sorted by Z-order (lowest to highest)

@@ -7,11 +7,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Mediator.Abstractions" Version="3.0.1" />
-        <PackageReference Include="Mediator.SourceGenerator" Version="3.0.1">
-          <PrivateAssets>all</PrivateAssets>
-          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-        </PackageReference>
         <PackageReference Include="SkiaSharp" Version="3.119.1" />
         <PackageReference Include="SkiaSharp.Views.Blazor" Version="3.119.1" />
         <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.0.9" />
@@ -25,6 +20,10 @@
     <ItemGroup>
       <_ContentIncludedByDefault Remove="Components\Layout\MainLayout.razor" />
       <_ContentIncludedByDefault Remove="Components\Layout\NavMenu.razor" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include=".github\workflows\build.yml" />
     </ItemGroup>
 
 </Project>

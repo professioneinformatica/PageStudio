@@ -1,7 +1,5 @@
 using Ardalis.GuardClauses;
-using Mediator;
 using PageStudio.Core.Interfaces;
-using PageStudio.Core.Models.ContainerPageElements;
 using SkiaSharp;
 
 namespace PageStudio.Core.Models.Abstractions;
@@ -11,8 +9,6 @@ namespace PageStudio.Core.Models.Abstractions;
 /// </summary>
 public abstract class PageElement : IPageElement
 {
-    public IMediator InternalMediator { get; init; }
-
     /// <summary>
     /// Unique identifier for the element
     /// </summary>
@@ -106,7 +102,6 @@ public abstract class PageElement : IPageElement
         set
         {
             _zOrder = value;
-            InternalMediator.Publish(new PageElementZOrderChangedMessage(this));
         }
     }
 
@@ -153,10 +148,8 @@ public abstract class PageElement : IPageElement
     /// </summary>
     /// <param name="page"></param>
     /// <param name="name">Element name</param>
-    /// <param name="mediator"></param>
-    protected PageElement(IMediator mediator, IPage page, string name = "Element")
+    protected PageElement(IPage page, string name = "Element")
     {
-        InternalMediator = mediator;
         Page = page;
         Id = Guid.CreateVersion7();
         Name = name;
@@ -180,7 +173,8 @@ public abstract class PageElement : IPageElement
     /// <param name="graphics">Graphics context for rendering</param>
     public void Render(IGraphicsContext graphics)
     {
-        if (!IsVisible || graphics == null)
+        Guard.Against.Null(graphics);
+        if (!IsVisible)
             return;
 
         graphics.Save();

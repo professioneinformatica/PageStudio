@@ -1,4 +1,3 @@
-using Mediator;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.FluentUI.AspNetCore.Components;
 
@@ -12,13 +11,6 @@ public static class Program
 
         builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
         
-        builder.Services.AddMediator((MediatorOptions options) =>
-            {
-                options.Assemblies = [typeof(PageStudio.Web.Client.Program),typeof(PageStudio.Core.Interfaces.IDocument)];
-                options.GenerateTypesAsInternal = true;
-            }
-        );
-
         builder.Services.AddPageStudioCoreServices();
         
         builder.Services.AddFluentUIComponents();

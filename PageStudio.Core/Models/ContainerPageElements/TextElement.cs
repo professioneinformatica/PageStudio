@@ -1,4 +1,3 @@
-using Mediator;
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models.Abstractions;
 using SkiaSharp;
@@ -104,8 +103,8 @@ public class TextElement : PageElement
     /// <param name="text">Initial text content</param>
     /// <param name="fontFamily">Font family name</param>
     /// <param name="fontSize">Font size in points</param>
-    public TextElement(IMediator mediator, IPage page, string text = "Sample Text", string fontFamily = "Arial", float fontSize = 12.0f)
-        : base(mediator, page, "Text Element")
+    public TextElement(IPage page, string text = "Sample Text", string fontFamily = "Arial", float fontSize = 12.0f)
+        : base(page, "Text Element")
     {
         _text = text;
         _fontFamily = fontFamily;
@@ -160,7 +159,7 @@ public class TextElement : PageElement
     /// <returns>Cloned text element</returns>
     public override IPageElement Clone()
     {
-        var clone = new TextElement(this.InternalMediator, this.Page, Text, FontFamily, FontSize)
+        var clone = new TextElement(this.Page, Text, FontFamily, FontSize)
         {
             Name = Name,
             X = X,

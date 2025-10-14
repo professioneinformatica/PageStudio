@@ -1,4 +1,3 @@
-using Mediator;
 using PageStudio.Web.Components;
 
 namespace PageStudio.Web;
@@ -9,20 +8,9 @@ public static class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        builder.Services.AddMediator(
-            (MediatorOptions options) =>
-            {
-                options.Assemblies = [typeof(PageStudio.Web.Program), 
-                    typeof(PageStudio.Web.Client.Program),
-                    typeof(PageStudio.Core.Interfaces.IDocument)
-                ];
-                options.GenerateTypesAsInternal = true;
-            }
-        );
-
         builder.Services.AddPageStudioCoreServices();
-        
-// Add services to the container.
+
+        // Add services to the container.
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents()
             .AddCircuitOptions(x => x.DetailedErrors = true)
