@@ -1,5 +1,6 @@
 [![SonarQube Cloud](https://sonarcloud.io/images/project_badges/sonarcloud-highlight.svg)](https://sonarcloud.io/summary/new_code?id=professioneinformatica_PageStudio)
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=professioneinformatica_PageStudio&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=professioneinformatica_PageStudio)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=professioneinformatica_PageStudio&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=professioneinformatica_PageStudio)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=professioneinformatica_PageStudio&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=professioneinformatica_PageStudio)
 [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=professioneinformatica_PageStudio&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=professioneinformatica_PageStudio)
