@@ -40,7 +40,7 @@ public static class Program
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode()
             .AddInteractiveWebAssemblyRenderMode()
-            .AddAdditionalAssemblies(typeof(PageStudio.Web.Client._Imports).Assembly);
+            .AddAdditionalAssemblies(typeof(PageStudio.Web.Client.Program).Assembly);
 
         await app.RunAsync();
     }

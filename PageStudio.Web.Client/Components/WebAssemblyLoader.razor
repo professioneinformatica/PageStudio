@@ -1,0 +1,88 @@
+@using Microsoft.AspNetCore.WebUtilities
+@using System.Timers
+@inject NavigationManager Navigation
+
+@if (!_isInteractive)
+{
+    <div>
+        <p>Inizializzazione di WebAssembly in corso... La pagina verrà aggiornata automaticamente
+            in @RefreshIntervalSeconds .</p>
+    </div>
+}
+else
+{
+    <div>
+        <p>WebAssembly inizializzato!</p>
+    </div>
+}
+
+@code {
+    private bool _isInteractive = false;
+    private int _refreshCount;
+    private Timer? _refreshTimer;
+
+    [Parameter] public int RefreshIntervalSeconds { get; set; } = 3;
+    private const int MaxRefreshCount = 3;
+    private const string RefreshCountQueryKey = "refreshCount";
+
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        if (query.TryGetValue(RefreshCountQueryKey, out var value) && int.TryParse(value.ToString(), out var parsedCount))
+        {
+            _refreshCount = parsedCount;
+        }
+        else
+        {
+            _refreshCount = 0;
+        }
+
+        _isInteractive = IsInteractiveWebAssemblyRenderMode();
+        if (!_isInteractive && _refreshCount < MaxRefreshCount)
+        {
+            _refreshTimer = new Timer(RefreshIntervalSeconds * 1000);
+            _refreshTimer.Elapsed += (sender, args) => OnRefreshTimerElapsed(uri, query);
+            _refreshTimer.AutoReset = false;
+            _refreshTimer.Start();
+        }
+    }
+
+    private void OnRefreshTimerElapsed(Uri uri, Dictionary<string, Microsoft.Extensions.Primitives.StringValues> query)
+    {
+        _refreshTimer?.Stop();
+        _refreshTimer?.Dispose();
+        _refreshTimer = null;
+        var nextCount = _refreshCount + 1;
+        var baseUri = uri.GetLeftPart(UriPartial.Path);
+        var queryDict = query.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToString());
+        queryDict[RefreshCountQueryKey] = nextCount.ToString();
+        var newQuery = string.Join("&", queryDict.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+        var newUri = $"{baseUri}?{newQuery}";
+        InvokeAsync(() =>
+            {
+                try
+                {
+                    Navigation.NavigateTo(newUri, forceLoad: true);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
+            }
+        );
+    }
+
+    public void Dispose()
+    {
+        _refreshTimer?.Stop();
+        _refreshTimer?.Dispose();
+    }
+
+    private bool IsInteractiveWebAssemblyRenderMode()
+    {
+        var a = this.AssignedRenderMode is InteractiveWebAssemblyRenderMode;
+        return a;
+    }
+
+}

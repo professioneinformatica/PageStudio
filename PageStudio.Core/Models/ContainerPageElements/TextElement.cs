@@ -1,5 +1,7 @@
+using PageStudio.Core.Features.EventsManagement;
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models.Abstractions;
+using PageStudio.Core.Models.Page;
 using SkiaSharp;
 
 namespace PageStudio.Core.Models.ContainerPageElements;
@@ -11,6 +13,7 @@ public class TextElement : PageElement
 {
     private const float FloatComparisonEpsilon = 0.01f;
 
+    private readonly IEventPublisher _eventPublisher;
     private string _text;
 
     /// <summary>
@@ -103,9 +106,10 @@ public class TextElement : PageElement
     /// <param name="text">Initial text content</param>
     /// <param name="fontFamily">Font family name</param>
     /// <param name="fontSize">Font size in points</param>
-    public TextElement(IPage page, string text = "Sample Text", string fontFamily = "Arial", float fontSize = 12.0f)
-        : base(page, "Text Element")
+    public TextElement(IEventPublisher eventPublisher, IPage page, string text = "Sample Text", string fontFamily = "Arial", float fontSize = 12.0f)
+        : base(eventPublisher, page, "Text Element")
     {
+        _eventPublisher = eventPublisher;
         _text = text;
         _fontFamily = fontFamily;
         _fontSize = fontSize;
@@ -159,7 +163,7 @@ public class TextElement : PageElement
     /// <returns>Cloned text element</returns>
     public override IPageElement Clone()
     {
-        var clone = new TextElement(this.Page, Text, FontFamily, FontSize)
+        var clone = new TextElement(_eventPublisher, this.Page, Text, FontFamily, FontSize)
         {
             Name = Name,
             X = X,
@@ -170,7 +174,7 @@ public class TextElement : PageElement
             Opacity = Opacity,
             IsVisible = IsVisible,
             IsLocked = IsLocked,
-            ZOrder = ZOrder,
+            ZIndex = ZIndex,
             FontStyle = FontStyle,
             TextColor = TextColor,
             TextAlign = TextAlign

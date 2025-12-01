@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using PageStudio.Core.Interfaces;
+using PageStudio.Core.Models.Abstractions;
 
 namespace PageStudio.Web.Client.Components;
 

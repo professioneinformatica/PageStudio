@@ -3,8 +3,12 @@ using PageStudio.Core.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Ardalis.GuardClauses;
+using PageStudio.Core.Features.EventsManagement;
+using PageStudio.Core.Models.Abstractions;
 using PageStudio.Core.Models.Documents;
+using PageStudio.Core.Models.Page;
 
 namespace PageStudio.Core.Services
 {
@@ -41,6 +45,25 @@ namespace PageStudio.Core.Services
             }
         }
 
+        public record DocumentZoomChangedMessage(CanvasDocumentInteractor CanvasDocumentInteractor) : IEvent;
+
+        public CanvasDocumentInteractor(IEventPublisher eventPublisher)
+        {
+            this.ZoomManager.ZoomChanged += () => { eventPublisher.Publish(new DocumentZoomChangedMessage(this)); };
+        }
+
+        public IGraphicsContext? GraphicsContext { get; set; }
+        
+        public void RenderDocument()
+        {
+            if (this.GraphicsContext is null)
+                return;
+            
+            if (this.CurrentDocument is null)
+                return;
+            
+            this.CurrentDocument.Render(this.GraphicsContext);
+        }
         // Element selection
         public IPageElement? SelectedElement { get; set; }
 
@@ -61,10 +84,23 @@ namespace PageStudio.Core.Services
         public int? SelectedPageIndex { get; set; }
         public InteractionMode ActiveTool { get; set; } = InteractionMode.Selection;
 
+        /// <summary>
+        /// Gets the page at the specified canvas coordinates.
+        /// </summary>
+        /// <param name="canvasX">The x-coordinate on the canvas.</param>
+        /// <param name="canvasY">The y-coordinate on the canvas.</param>
+        /// <returns>
+        /// A tuple containing the page located at the specified coordinates, the horizontal offset
+        /// of the page relative to the canvas, and the vertical offset of the page relative to the canvas.
+        /// If no page is found at the specified coordinates, the first item in the tuple will be null.
+        /// </returns>
         public (IPage? page, double pageOffsetX, double pageOffsetY) GetPageAtPosition(double canvasX, double canvasY)
         {
-            Guard.Against.Null(this.CurrentDocument);
-            
+            if (this.CurrentDocument is null)
+            {
+                return (null, 0, 0);
+            }
+
             double yOffset = 0;
             if (CurrentLayoutMode == LayoutMode.Vertical)
             {
@@ -108,10 +144,10 @@ namespace PageStudio.Core.Services
 
         public IPageElement? HitTestElement(IPage page, double x, double y)
         {
-            if (page is Models.Page concretePage)
+            if (page is Page concretePage)
             {
                 var elements = concretePage.GetElementsAtPosition(x, y);
-                return elements.OrderByDescending(e => e.ZOrder).FirstOrDefault();
+                return elements.OrderByDescending(e => e.ZIndex).FirstOrDefault();
             }
 
             return null;
@@ -134,7 +170,7 @@ namespace PageStudio.Core.Services
             return ((clientX - PanOffsetX) / this.ZoomManager.Level, (clientY - PanOffsetY) / this.ZoomManager.Level);
         }
     }
-
+    
     public class ZoomManager
     {
         public event Action? ZoomChanged;

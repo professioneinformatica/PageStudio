@@ -1,9 +1,10 @@
+using PageStudio.Core.Features.EventsManagement;
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models.Documents;
 
 namespace PageStudio.Core.Services;
 
-public class DocumentsRepository() : IDocumentsRepository
+public class DocumentsRepository(IEventPublisher eventPublisher) : IDocumentsRepository
 {
     private readonly Dictionary<Guid, Document> _documents = new();
 
@@ -11,10 +12,13 @@ public class DocumentsRepository() : IDocumentsRepository
 
     public IDocument? Get(Guid id) => _documents.GetValueOrDefault(id);
 
+    public IDocument? CurrentDocument { get; set; }
+
     public IDocument Create(string name)
     {
-        var doc = new Document(name);
+        var doc = new Document(eventPublisher, name);
         _documents[doc.Id] = doc;
+        this.CurrentDocument = doc;
         return doc;
     }
 

@@ -1,4 +1,5 @@
 using PageStudio.Core.Models;
+using PageStudio.Core.Models.Page;
 
 namespace PageStudio.Core.Models;
 

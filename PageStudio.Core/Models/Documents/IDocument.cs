@@ -1,8 +1,9 @@
-using System.Collections.Generic;
-using PageStudio.Core.Models;
-using PageStudio.Core.Models.Documents;
+using PageStudio.Core.Interfaces;
+using PageStudio.Core.Models.Page;
+using PageStudio.Core.Services;
+using SkiaSharp;
 
-namespace PageStudio.Core.Interfaces;
+namespace PageStudio.Core.Models.Documents;
 
 /// <summary>
 /// Represents a document in the PageStudio application
@@ -13,7 +14,7 @@ public interface IDocument
     /// Unique identifier for the document
     /// </summary>
     Guid Id { get; }
-    
+
     /// <summary>
     /// Document name/title
     /// </summary>
@@ -28,26 +29,32 @@ public interface IDocument
     /// Defines the unit of measurement for the document dimensions
     /// </summary>
     UnitOfMeasure UnitOfMeasure { get; set; }
-    
+
     /// <summary>
     /// Collection of pages in the document
     /// </summary>
     IList<IPage> Pages { get; }
-    
+
     /// <summary>
     /// Document metadata
     /// </summary>
     Dictionary<string, object> Metadata { get; }
-    
+
     /// <summary>
     /// Document creation timestamp
     /// </summary>
     DateTime CreatedAt { get; }
-    
+
     /// <summary>
     /// Last modification timestamp
     /// </summary>
     DateTime ModifiedAt { get; set; }
+
+    /// <summary>
+    /// Manages interactions with the canvas, such as page selection, element hit-testing, and panning,
+    /// enabling dynamic user interaction within the document.
+    /// </summary>
+    CanvasDocumentInteractor CanvasInteractor { get; set; }
 
     /// <summary>
     /// Specifies the default page format used by the document.
@@ -55,6 +62,11 @@ public interface IDocument
     /// for new pages added to the document.
     /// </summary>
     PageFormat DefaultPageFormat { get; set; }
+
+    /// <summary>
+    /// SKSurface object that represents the document canvas.
+    /// </summary>
+    SKSurface Surface { get; set; }
 
     /// <summary>
     /// Adds a new page to the document
@@ -111,6 +123,10 @@ public interface IDocument
     /// </summary>
     /// <param name="key">The key associated with the metadata entry.</param>
     /// <param name="value">The value to set for the specified key.</param>
-    void SetMetadata(string key, object  value);
+    void SetMetadata(string key, object value);
 
+    /// <summary>
+    /// Renders the whole document, pages and child objects
+    /// </summary>
+    void Render(IGraphicsContext graphics);
 }

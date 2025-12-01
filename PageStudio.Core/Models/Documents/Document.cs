@@ -1,5 +1,10 @@
 using Ardalis.GuardClauses;
+using PageStudio.Core.Features.EventsManagement;
 using PageStudio.Core.Interfaces;
+using PageStudio.Core.Models.Abstractions;
+using PageStudio.Core.Models.Page;
+using PageStudio.Core.Services;
+using SkiaSharp;
 
 namespace PageStudio.Core.Models.Documents;
 
@@ -12,12 +17,17 @@ public enum UnitOfMeasure
     Inches
 }
 
+public record ZIndexChangedMessage(IPageElement element, int oldZIndex) : IEvent;
+
 /// <summary>
 /// Implementation of IDocument interface representing a document in the PageStudio application
 /// </summary>
 public class Document : IDocument
 {
+    private readonly IEventPublisher _eventPublisher;
     private readonly List<IPage> _pages;
+
+    public CanvasDocumentInteractor CanvasInteractor { get; set; }
 
     /// <summary>
     /// Unique identifier for the document
@@ -64,13 +74,17 @@ public class Document : IDocument
     /// </summary>
     public UnitOfMeasure UnitOfMeasure { get; set; }
 
+    /// <inheritdoc cref="Surface" />
+    public SKSurface Surface { get; set; }
+
     /// <summary>
     /// Initializes a new instance of Document
     /// </summary>
-    /// <param name="mediator"></param>
+    /// <param name="eventPublisher"></param>
     /// <param name="name">Document name</param>
-    public Document(string name = "New Document")
+    public Document(IEventPublisher eventPublisher, string name = "New Document")
     {
+        _eventPublisher = eventPublisher;
         Id = Guid.CreateVersion7();
         Name = name;
         _pages = new List<IPage>();
@@ -78,6 +92,8 @@ public class Document : IDocument
         CreatedAt = DateTime.UtcNow;
         ModifiedAt = DateTime.UtcNow;
 
+        this.CanvasInteractor = new(eventPublisher);
+        
         // Initialize default page format (A4 Portrait)
         DefaultPageFormat = PageFormat.Create(StandardPageFormat.A4, PageOrientation.Portrait);
 
@@ -225,6 +241,77 @@ public class Document : IDocument
         UpdateModifiedTime();
     }
 
+    public void Render(IGraphicsContext graphics)
+    {
+        graphics.Canvas.Clear(SKColors.White);
+        graphics.Canvas.Save();
+        graphics.Canvas.Translate(this.CanvasInteractor.PanOffsetX, this.CanvasInteractor.PanOffsetY);
+        graphics.Canvas.Scale(this.CanvasInteractor.ZoomManager.Level);
+
+        // Create graphics context
+
+        // Render pages based on layout mode
+        if (this.CanvasInteractor.CurrentLayoutMode == LayoutMode.Vertical)
+        {
+            RenderPagesVertically(graphics);
+        }
+        else
+        {
+            RenderPagesSideBySide(graphics);
+        }
+
+        // Restore canvas state after zoom transformation
+        graphics.Canvas.Restore();
+        
+    }
+
+    private void RenderPagesSideBySide(IGraphicsContext context)
+    {
+        var pages = this.Pages.ToList();
+        var maxPageHeight = 0f;
+
+        for (var i = 0; i < pages.Count; i++)
+        {
+            var page = pages[i];
+
+            // If this is an even index (0, 2, 4...), start a new row
+            float xOffset;
+            float yOffset = 0;
+            if (i % 2 == 0)
+            {
+                xOffset = 0f;
+                if (i > 0)
+                {
+                    yOffset += maxPageHeight + 20; // Move to the next row with spacing
+                }
+
+                maxPageHeight = 0f;
+            }
+            else
+            {
+                // Odd index (1, 3, 5...), place to the right of the previous page
+                var previousPage = pages[i - 1];
+                xOffset = (float)previousPage.Width + 20; // Add spacing between side-by-side pages
+            }
+
+            context.Translate(xOffset, yOffset);
+            page.Render(context);
+
+            // Track the maximum height in this row
+            maxPageHeight = Math.Max(maxPageHeight, (float)page.Height);
+        }
+    }
+
+    private void RenderPagesVertically(IGraphicsContext context)
+    {
+        var yOffset = 0f;
+        foreach (var page in this.Pages)
+        {
+            page.Render(context);
+            yOffset += (float)page.Height + 20; // Add some spacing between pages
+        }
+    }
+    
     /// <summary>
     /// Gets metadata value
     /// </summary>
@@ -258,7 +345,7 @@ public class Document : IDocument
 
         for (int i = 0; i < numberOfPagesToAdd; i++)
         {
-            var page = new Page(this)
+            var page = new Page.Page(_eventPublisher, this)
             {
                 Width = pageFormat.ActualWidth,
                 Height = pageFormat.ActualHeight,
@@ -280,7 +367,7 @@ public class Document : IDocument
     {
         foreach (var page in _pages)
         {
-            var concretePage = (Page)page;
+            var concretePage = (Page.Page)page;
             concretePage.IsActive = page.Id == pageId;
         }
 

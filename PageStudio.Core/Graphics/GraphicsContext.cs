@@ -20,9 +20,7 @@ public class GraphicsContext : IGraphicsContext
     /// </summary>
     public int Width { get; }
     
-    /// <summary>
-    /// Current height of the drawing area
-    /// </summary>
+    /// <inheritdoc cref="Height"/>
     public int Height { get; }
 
     /// <summary>

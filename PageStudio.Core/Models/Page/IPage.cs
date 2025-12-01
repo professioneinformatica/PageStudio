@@ -1,5 +1,10 @@
 
-namespace PageStudio.Core.Interfaces;
+using PageStudio.Core.Interfaces;
+using PageStudio.Core.Models.Abstractions;
+using PageStudio.Core.Models.ContainerPageElements;
+using PageStudio.Core.Models.Documents;
+
+namespace PageStudio.Core.Models.Page;
 
 /// <summary>
 /// Represents a page in a document
@@ -126,4 +131,11 @@ public interface IPage
     /// </summary>
     /// <returns>All elements sorted by rendering order</returns>
     IEnumerable<IPageElement> GetAllElementsByRenderOrder();
+    
+    /// <summary>
+    /// Renders the page elements to the specified graphics context
+    /// </summary>
+    /// <param name="graphics"></param>
+    void Render(IGraphicsContext graphics);
+    
 }

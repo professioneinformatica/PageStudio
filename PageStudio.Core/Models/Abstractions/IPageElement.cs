@@ -1,5 +1,8 @@
 
-namespace PageStudio.Core.Interfaces;
+using PageStudio.Core.Interfaces;
+using PageStudio.Core.Models.Page;
+
+namespace PageStudio.Core.Models.Abstractions;
 
 /// <summary>
 /// Base interface for all elements that can be placed on a page
@@ -20,7 +23,11 @@ public interface IPageElement
     /// Element name/title
     /// </summary>
     string Name { get; set; }
-    
+
+    /// <summary>
+    /// Indicates whether the element should be hidden from the document structure
+    /// </summary>
+    bool HideFromDocumentStructure { get; set; }
     /// <summary>
     /// X coordinate of the element
     /// </summary>
@@ -75,7 +82,7 @@ public interface IPageElement
     /// <summary>
     /// Z-order of the element (higher values are on top)
     /// </summary>
-    int ZOrder { get; set; }
+    int ZIndex { get; set; }
     
     /// <summary>
     /// Element creation timestamp
@@ -91,12 +98,21 @@ public interface IPageElement
     /// Whether this element can contain child elements
     /// </summary>
     bool CanContainChildren { get; }
+
+    public IPageElement? Parent { get; set; }
     
     /// <summary>
     /// Collection of child elements
     /// </summary>
-    IList<IPageElement> Childrens { get; }
-    
+    IReadOnlyList<IPageElement> Children { get; }
+
+    /// <summary>
+    /// Retrieves the index of a specified child element within the current element's child collection.
+    /// </summary>
+    /// <param name="child">The child element whose index is to be determined.</param>
+    /// <returns>The zero-based index of the specified child element, or -1 if the child element is not found.</returns>
+    internal int GetChildIndex(IPageElement child);
+
     /// <summary>
     /// Renders the element using the provided graphics context
     /// </summary>
@@ -115,15 +131,29 @@ public interface IPageElement
     /// Adds an element to the layer
     /// </summary>
     /// <param name="element">Element to add</param>
-    void AddChildren(IPageElement element);
+    void AddChild(IPageElement element);
     
+    /// <summary>
+    /// Removes an element from the layer
+    /// </summary>
+    /// <param name="element">the element to remove</param>
+    /// <returns>True if element was removed, false otherwise</returns>
+    bool RemoveChild(IPageElement element);
+
     /// <summary>
     /// Removes an element from the layer
     /// </summary>
     /// <param name="elementId">ID of the element to remove</param>
     /// <returns>True if element was removed, false otherwise</returns>
-    bool RemoveChildren(Guid elementId);
-    
+    bool RemoveChild(Guid elementId);
+
+    /// <summary>
+    /// Moves a child element to the specified index within the parent's children collection.
+    /// </summary>
+    /// <param name="element">The child element to move.</param>
+    /// <param name="newIndex">The zero-based index in the children collection to move the element to.</param>
+    void MoveChildToIndex(PageElement element, int newIndex);
+
     /// <summary>
     /// Gets an element by its ID
     /// </summary>

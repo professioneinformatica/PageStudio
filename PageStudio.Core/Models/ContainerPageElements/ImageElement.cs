@@ -1,5 +1,7 @@
+using PageStudio.Core.Features.EventsManagement;
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models.Abstractions;
+using PageStudio.Core.Models.Page;
 using SkiaSharp;
 
 namespace PageStudio.Core.Models.ContainerPageElements;
@@ -9,6 +11,8 @@ namespace PageStudio.Core.Models.ContainerPageElements;
 /// </summary>
 public class ImageElement : PageElement
 {
+    private readonly IEventPublisher _eventPublisher;
+
     /// <summary>
     /// Dati immagine in formato base64 (PNG/JPEG)
     /// </summary>
@@ -25,8 +29,9 @@ public class ImageElement : PageElement
     /// <param name="page"></param>
     /// <param name="imageBase64">Dati immagine base64</param>
     /// <param name="mediator"></param>
-    public ImageElement(IPage page, string? imageBase64 = null) : base(page, "Image Element")
+    public ImageElement(IEventPublisher eventPublisher, IPage page, string? imageBase64 = null) : base(eventPublisher, page, "Image Element")
     {
+        _eventPublisher = eventPublisher;
         ImageBase64 = imageBase64;
         SetDimension(200, 150);
 
@@ -78,7 +83,7 @@ public class ImageElement : PageElement
     /// </summary>
     public override IPageElement Clone()
     {
-        var clone = new ImageElement(this.Page, ImageBase64)
+        var clone = new ImageElement(_eventPublisher, this.Page, ImageBase64)
         {
             Name = Name,
             X = X,
@@ -87,7 +92,7 @@ public class ImageElement : PageElement
             Opacity = Opacity,
             IsVisible = IsVisible,
             IsLocked = IsLocked,
-            ZOrder = ZOrder
+            ZIndex = ZIndex
         };
         clone.SetDimension(this.Width, this.Height);
         return clone;

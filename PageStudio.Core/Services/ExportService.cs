@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using SkiaSharp;
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Graphics;
+using PageStudio.Core.Models.Documents;
+using PageStudio.Core.Models.Page;
 
 namespace PageStudio.Core.Services;
 

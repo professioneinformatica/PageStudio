@@ -1,5 +1,7 @@
+using PageStudio.Core.Features.EventsManagement;
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models.Abstractions;
+using PageStudio.Core.Models.Page;
 
 namespace PageStudio.Core.Models.ContainerPageElements;
 
@@ -8,6 +10,8 @@ namespace PageStudio.Core.Models.ContainerPageElements;
 /// </summary>
 public class GroupElement : PageElement
 {
+    private readonly IEventPublisher _eventPublisher;
+
     /// <summary>
     /// Container elements can always contain children
     /// </summary>
@@ -16,7 +20,7 @@ public class GroupElement : PageElement
     /// <summary>
     /// Collection of child elements
     /// </summary>
-    public override IList<IPageElement> Childrens => _children;
+    public override IReadOnlyList<IPageElement> Children => _children.AsReadOnly();
 
     /// <summary>
     /// Initializes a new instance of ContainerElement
@@ -24,8 +28,9 @@ public class GroupElement : PageElement
     /// <param name="page"></param>
     /// <param name="name">Container name</param>
     /// <param name="mediator"></param>
-    public GroupElement(IPage page, string name = "Container") : base(page, name)
+    public GroupElement(IEventPublisher eventPublisher, IPage page, string name = "Container") : base(eventPublisher, page, name)
     {
+        _eventPublisher = eventPublisher;
     }
 
     /// <summary>
@@ -43,7 +48,7 @@ public class GroupElement : PageElement
     /// <returns>Cloned container element</returns>
     public override IPageElement Clone()
     {
-        var clone = new GroupElement(this.Page, Name)
+        var clone = new GroupElement(_eventPublisher, this.Page, Name)
         {
             X = X,
             Y = Y,
@@ -53,14 +58,14 @@ public class GroupElement : PageElement
             Opacity = Opacity,
             IsVisible = IsVisible,
             IsLocked = IsLocked,
-            ZOrder = ZOrder,
+            ZIndex = ZIndex,
             ModifiedAt = ModifiedAt
         };
 
         // Clone children
-        foreach (var child in Childrens)
+        foreach (var child in Children)
         {
-            clone.Childrens.Add(child.Clone());
+            clone.AddChild(child.Clone());
         }
 
         return clone;

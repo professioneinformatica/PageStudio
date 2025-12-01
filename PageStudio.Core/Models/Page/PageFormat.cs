@@ -1,7 +1,6 @@
-using System.Collections.Generic;
 using PageStudio.Core.Models.Documents;
 
-namespace PageStudio.Core.Models;
+namespace PageStudio.Core.Models.Page;
 
 /// <summary>
 /// Enumeration of standard page formats

@@ -1,36 +1,25 @@
+using Ardalis.GuardClauses;
+using Microsoft.AspNetCore.Components.Web;
+using Microsoft.FluentUI.AspNetCore.Components;
+using PageStudio.Core.Features.EventsManagement;
 using PageStudio.Core.Graphics;
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models;
+using PageStudio.Core.Models.Abstractions;
+using PageStudio.Core.Models.ContainerPageElements;
+using PageStudio.Core.Models.Page;
+using PageStudio.Core.Services;
 using SkiaSharp;
 using SkiaSharp.Views.Blazor;
-using Microsoft.AspNetCore.Components.Web;
-using PageStudio.Core.Models.ContainerPageElements;
-using Microsoft.FluentUI.AspNetCore.Components;
-using PageStudio.Core.Services;
 
 namespace PageStudio.Web.Client.Pages;
 
-public partial class DocumentRenderer
+public partial class Document(IEventPublisher eventPublisher, ILogger<Document> logger, IDocumentsRepository documentsRepository)
 {
-    private readonly ILogger<DocumentRenderer> _logger;
-    private readonly IDocumentsRepository _documentsRepository;
     private SKCanvasView? _canvasView;
     private string _documentName = "My Document";
-    private bool _isRendered;
 
-    private readonly CanvasDocumentInteractor _canvasInteractor = new();
-
-    public DocumentRenderer(ILogger<DocumentRenderer> logger, IDocumentsRepository documentsRepository)
-    {
-        _logger = logger;
-        _documentsRepository = documentsRepository;
-        _canvasInteractor.ZoomManager.ZoomChanged += OnZoomChanged;
-    }
-
-    private void OnZoomChanged()
-    {
-        RenderCanvas();
-    }
+    // _canvasInteractor.ZoomManager.ZoomChanged += OnZoomChanged;
 
     // Document properties modal
     private bool _showDocumentProperties;
@@ -77,7 +66,7 @@ public partial class DocumentRenderer
         get
         {
             var cursorType = "default";
-            switch (_canvasInteractor.ActiveTool)
+            switch (documentsRepository.CurrentDocument?.CanvasInteractor.ActiveTool)
             {
                 case CanvasDocumentInteractor.InteractionMode.Selection:
                     break;
@@ -92,33 +81,36 @@ public partial class DocumentRenderer
 
     private void CreateNewDocument()
     {
-        _logger.LogDebug("CreateNewDocument method called");
-        _canvasInteractor.CurrentDocument = _documentsRepository.Create(_documentName);
-        _isRendered = false;
+        logger.LogDebug("CreateNewDocument method called");
+
+        var doc = documentsRepository.Create(_documentName);
+
         StateHasChanged();
-        _logger.LogDebug("Document created: {Document}", _canvasInteractor.CurrentDocument.Name);
+        logger.LogDebug("Document created: {Document}", doc.Name);
     }
 
-    private async Task AddSamplePage(AddPageModel model)
+    private async Task AddPage(AddPageModel model)
     {
-        if (_canvasInteractor.CurrentDocument == null) return;
+        if (documentsRepository.CurrentDocument is null) return;
         CloseAddPagesModal();
 
-        var addedPages = await _canvasInteractor.CurrentDocument.AddPages(model.SelectedPageFormat, model.NumberOfPagesToAdd, _canvasInteractor.SelectedPageIndex);
+        var addedPages = await documentsRepository.CurrentDocument.AddPages(model.SelectedPageFormat, model.NumberOfPagesToAdd,
+            documentsRepository.CurrentDocument.CanvasInteractor.SelectedPageIndex);
 
         foreach (var page in addedPages)
         {
-            var title = page.AddElement(new TextElement(page)
+            var title = page.AddElement(new TextElement(eventPublisher, page)
             {
                 Text = $"Page Name: {page.Name}",
                 FontFamily = "Arial",
                 FontSize = 24,
                 TextColor = SKColors.Gray,
                 X = 10,
-                Y = 10
+                Y = 10,
+                HideFromDocumentStructure = true
             });
 
-            page.AddElement(new TextElement(page)
+            page.AddElement(new TextElement(eventPublisher, page)
             {
                 Text = $"Page Size: {page.Width} x {page.Height}",
                 FontFamily = "Arial",
@@ -126,34 +118,25 @@ public partial class DocumentRenderer
                 TextColor = SKColors.LightGray,
                 X = title.X,
                 Y = title.Height + 10,
+                HideFromDocumentStructure = true
             });
         }
 
         BuildDocumentTree(); // Aggiorna l'albero dopo aver aggiunto pagine
-        this.RenderDocument();
-    }
-
-    private void RenderDocument()
-    {
-        if (_canvasInteractor.CurrentDocument == null) return;
-        _isRendered = true;
-        if (_canvasReady)
-        {
-            StateHasChanged();
-            // Force canvas repaint
-            RenderCanvas();
-        }
+        this.RenderCanvas();
     }
 
     private void SetVerticalLayout()
     {
-        _canvasInteractor.CurrentLayoutMode = LayoutMode.Vertical;
+        Guard.Against.Null(documentsRepository.CurrentDocument);
+        documentsRepository.CurrentDocument.CanvasInteractor.CurrentLayoutMode = LayoutMode.Vertical;
         RenderCanvas();
     }
 
     private void SetSideBySideLayout()
     {
-        _canvasInteractor.CurrentLayoutMode = LayoutMode.SideBySide;
+        Guard.Against.Null(documentsRepository.CurrentDocument);
+        documentsRepository.CurrentDocument.CanvasInteractor.CurrentLayoutMode = LayoutMode.SideBySide;
         RenderCanvas();
     }
 
@@ -170,14 +153,13 @@ public partial class DocumentRenderer
     private void ShowDocumentProperties()
     {
         // Chiudi l'ElementPropertiesPanel se visibile
-        _canvasInteractor.SelectedElement = null;
+        Guard.Against.Null(documentsRepository.CurrentDocument);
+
+        documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement = null;
         RenderCanvas();
 
-        if (_canvasInteractor.CurrentDocument != null)
-        {
-            _showDocumentProperties = true;
-            StateHasChanged();
-        }
+        _showDocumentProperties = true;
+        StateHasChanged();
     }
 
     private void CloseDocumentProperties()
@@ -188,12 +170,11 @@ public partial class DocumentRenderer
 
     private void ShowAddPagesModal()
     {
-        if (_canvasInteractor.CurrentDocument != null)
-        {
-            _showAddPagesModal = true;
-            _addPageModel.Reset(); // Reset to default
-            StateHasChanged();
-        }
+        Guard.Against.Null(documentsRepository.CurrentDocument);
+
+        _showAddPagesModal = true;
+        _addPageModel.Reset(); // Reset to default
+        StateHasChanged();
     }
 
     private void CloseAddPagesModal()
@@ -204,15 +185,14 @@ public partial class DocumentRenderer
 
     private void ShowAddTextModal()
     {
-        if (_canvasInteractor.CurrentDocument != null)
-        {
-            _showAddTextModal = true;
-            // Reset to default values
-            _newTextContent = "Sample Text";
-            _newTextFontFamily = "Arial";
-            _newTextFontSize = 12.0f;
-            StateHasChanged();
-        }
+        Guard.Against.Null(documentsRepository.CurrentDocument);
+
+        _showAddTextModal = true;
+        // Reset to default values
+        _newTextContent = "Sample Text";
+        _newTextFontFamily = "Arial";
+        _newTextFontSize = 12.0f;
+        StateHasChanged();
     }
 
     private void CloseAddTextModal()
@@ -225,73 +205,74 @@ public partial class DocumentRenderer
 
     private void OnAddTextRequested(AddTextModal.AddTextRequest request)
     {
-        if (_canvasInteractor.CurrentDocument is null
-            || string.IsNullOrWhiteSpace(request.TextContent)
-            || _canvasInteractor.SelectedPage is null)
+        Guard.Against.Null(documentsRepository.CurrentDocument);
+
+        if (string.IsNullOrWhiteSpace(request.TextContent)
+            || documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage is null)
             return;
 
 
-        var textElement = new TextElement(_canvasInteractor.SelectedPage, request.TextContent, request.FontFamily, request.FontSize)
+        var textElement = new TextElement(eventPublisher, documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage, request.TextContent, request.FontFamily,
+            request.FontSize)
         {
             X = 50,
             Y = 50,
-            ZOrder = 1
+            ZIndex = 1
         };
         // Aggiungi alla pagina selezionata
-        _canvasInteractor.SelectedPage.AddElement(textElement);
+        documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage.AddElement(textElement);
 
         BuildDocumentTree(); // Aggiorna l'albero dopo aver aggiunto un elemento
         CloseAddTextModal();
-        if (_isRendered)
-        {
-            RenderCanvas();
-        }
-        else
-        {
-            RenderDocument();
-        }
+
+        RenderCanvas();
     }
 
     private void OnPointerDown(PointerEventArgs e)
     {
-        if (_canvasInteractor.ActiveTool == CanvasDocumentInteractor.InteractionMode.Pan)
+        Guard.Against.Null(documentsRepository.CurrentDocument);
+
+        if (documentsRepository.CurrentDocument.CanvasInteractor.ActiveTool == CanvasDocumentInteractor.InteractionMode.Pan)
         {
             _isPanning = true;
             _panStartX = (float)e.ClientX;
             _panStartY = (float)e.ClientY;
         }
-        else if (_canvasInteractor.ActiveTool == CanvasDocumentInteractor.InteractionMode.Selection)
+        else if (documentsRepository.CurrentDocument.CanvasInteractor.ActiveTool == CanvasDocumentInteractor.InteractionMode.Selection)
         {
-            var (canvasX, canvasY) = _canvasInteractor.ToCanvasCoordinates(e.OffsetX, e.OffsetY);
-            if (_canvasInteractor.SelectedElement != null)
+            var (canvasX, canvasY) = documentsRepository.CurrentDocument.CanvasInteractor.ToCanvasCoordinates(e.OffsetX, e.OffsetY);
+            if (documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement != null)
             {
-                double localX = canvasX - _canvasInteractor.SelectedElement.X;
-                double localY = canvasY - _canvasInteractor.SelectedElement.Y;
-                var handleIdx = _canvasInteractor.SelectedElement is Core.Models.Abstractions.PageElement pe ? pe.HitTestHandle(localX, localY) : null;
+                double localX = canvasX - documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.X;
+                double localY = canvasY - documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Y;
+                var handleIdx = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement is Core.Models.Abstractions.PageElement pe
+                    ? pe.HitTestHandle(localX, localY)
+                    : null;
                 if (handleIdx.HasValue)
                 {
                     _isResizingElement = true;
                     _resizingHandleIndex = handleIdx;
                     _resizeStartX = (float)e.ClientX;
                     _resizeStartY = (float)e.ClientY;
-                    _elementStartWidth = _canvasInteractor.SelectedElement.Width;
-                    _elementStartHeight = _canvasInteractor.SelectedElement.Height;
-                    _elementStartXResize = _canvasInteractor.SelectedElement.X;
-                    _elementStartYResize = _canvasInteractor.SelectedElement.Y;
+                    _elementStartWidth = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Width;
+                    _elementStartHeight = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Height;
+                    _elementStartXResize = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.X;
+                    _elementStartYResize = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Y;
                     return;
                 }
             }
 
-            if (_canvasInteractor.SelectedElement != null && _canvasInteractor.SelectedPage is Page concretePage)
+            if (documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement != null &&
+                documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage is Page concretePage)
             {
                 var elementsAtPosition = concretePage.GetElementsAtPosition(canvasX, canvasY);
-                if (elementsAtPosition.Contains(_canvasInteractor.SelectedElement))
+                if (elementsAtPosition.Contains(documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement))
                 {
                     _isDraggingElement = true;
                     _dragStartX = (float)e.ClientX;
                     _dragStartY = (float)e.ClientY;
-                    _elementStartX = _canvasInteractor.SelectedElement.X;
-                    _elementStartY = _canvasInteractor.SelectedElement.Y;
+                    _elementStartX = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.X;
+                    _elementStartY = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Y;
                     return;
                 }
             }
@@ -303,14 +284,14 @@ public partial class DocumentRenderer
 
     private void OnCanvasClick(PointerEventArgs e)
     {
-        if (_canvasInteractor.CurrentDocument == null || !_isRendered)
+        if (documentsRepository.CurrentDocument is null)
             return;
 
-        var (canvasX, canvasY) = _canvasInteractor.ToCanvasCoordinates(e.OffsetX, e.OffsetY);
-        var (clickedPage, clickedElement) = _canvasInteractor.HitTest(_canvasInteractor.CurrentDocument, canvasX, canvasY);
-        _canvasInteractor.SelectedPage = clickedPage;
-        _canvasInteractor.SelectedElement = clickedElement;
-        if (_canvasInteractor.SelectedPage is Page concretePage)
+        var (canvasX, canvasY) = documentsRepository.CurrentDocument.CanvasInteractor.ToCanvasCoordinates(e.OffsetX, e.OffsetY);
+        var (clickedPage, clickedElement) = documentsRepository.CurrentDocument.CanvasInteractor.HitTest(documentsRepository.CurrentDocument, canvasX, canvasY);
+        documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage = clickedPage;
+        documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement = clickedElement;
+        if (documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage is Page concretePage)
         {
             foreach (var el in concretePage.GetAllElementsByRenderOrder())
                 el.IsSelected = false;
@@ -320,19 +301,22 @@ public partial class DocumentRenderer
 
         RenderCanvas();
         Console.WriteLine(
-            $"[DEBUG_LOG] Clicked at ({canvasX}, {canvasY}), selected: {_canvasInteractor.SelectedElement?.Name ?? "None"}, page: {_canvasInteractor.SelectedPage?.Name}");
+            $"[DEBUG_LOG] Clicked at ({canvasX}, {canvasY}), selected: {documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement?.Name ?? "None"}, page: {documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage?.Name}");
     }
 
     private void OnPointerMove(PointerEventArgs e)
     {
+        Guard.Against.Null(documentsRepository.CurrentDocument);
+
         _mouseX = e.OffsetX;
         _mouseY = e.OffsetY;
-        var (canvasX, canvasY) = _canvasInteractor.ToCanvasCoordinates(e.OffsetX, e.OffsetY);
-        var (page, pageOffsetX, pageOffsetY) = _canvasInteractor.GetPageAtPosition(canvasX, canvasY);
+        var (canvasX, canvasY) = documentsRepository.CurrentDocument.CanvasInteractor.ToCanvasCoordinates(e.OffsetX, e.OffsetY);
+        var (page, pageOffsetX, pageOffsetY) = documentsRepository.CurrentDocument.CanvasInteractor.GetPageAtPosition(canvasX, canvasY);
         _hoveredPage = page;
         if (page != null)
         {
-            _mousePageX = canvasX - pageOffsetX;
+            //_mousePageX = canvasX - pageOffsetX;
+            _mousePageX = e.OffsetX;
             _mousePageY = canvasY - pageOffsetY;
         }
         else
@@ -341,27 +325,28 @@ public partial class DocumentRenderer
             _mousePageY = null;
         }
 
-        if (_canvasInteractor.ActiveTool == CanvasDocumentInteractor.InteractionMode.Pan && _isPanning)
+        if (documentsRepository.CurrentDocument.CanvasInteractor.ActiveTool == CanvasDocumentInteractor.InteractionMode.Pan && _isPanning)
         {
             float deltaX = (float)e.ClientX - _panStartX;
             float deltaY = (float)e.ClientY - _panStartY;
-            _canvasInteractor.PanOffsetX += deltaX;
-            _canvasInteractor.PanOffsetY += deltaY;
+            documentsRepository.CurrentDocument.CanvasInteractor.PanOffsetX += deltaX;
+            documentsRepository.CurrentDocument.CanvasInteractor.PanOffsetY += deltaY;
             _panStartX = (float)e.ClientX;
             _panStartY = (float)e.ClientY;
             ClampPanOffsets(_canvasPixelWidth, _canvasPixelHeight);
             RenderCanvas();
         }
-        else if (_canvasInteractor.ActiveTool == CanvasDocumentInteractor.InteractionMode.Selection && _isResizingElement && _canvasInteractor.SelectedElement != null &&
+        else if (documentsRepository.CurrentDocument.CanvasInteractor.ActiveTool == CanvasDocumentInteractor.InteractionMode.Selection && _isResizingElement &&
+                 documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement != null &&
                  _resizingHandleIndex.HasValue)
         {
-            float deltaX = ((float)e.ClientX - _resizeStartX) / _canvasInteractor.ZoomManager.Level;
-            float deltaY = ((float)e.ClientY - _resizeStartY) / _canvasInteractor.ZoomManager.Level;
+            float deltaX = ((float)e.ClientX - _resizeStartX) / documentsRepository.CurrentDocument.CanvasInteractor.ZoomManager.Level;
+            float deltaY = ((float)e.ClientY - _resizeStartY) / documentsRepository.CurrentDocument.CanvasInteractor.ZoomManager.Level;
             double newX = _elementStartXResize;
             double newY = _elementStartYResize;
             double newW = _elementStartWidth;
             double newH = _elementStartHeight;
-            bool lockAspect = _canvasInteractor.SelectedElement.LockAspectRatio;
+            bool lockAspect = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.LockAspectRatio;
             double aspect = _elementStartWidth / (_elementStartHeight == 0 ? 1 : _elementStartHeight);
             switch (_resizingHandleIndex.Value)
             {
@@ -435,19 +420,22 @@ public partial class DocumentRenderer
             // Limiti minimi
             newW = Math.Max(10, newW);
             newH = Math.Max(10, newH);
-            _canvasInteractor.SelectedElement.X = newX;
-            _canvasInteractor.SelectedElement.Y = newY;
-            _canvasInteractor.SelectedElement.Width = newW;
-            _canvasInteractor.SelectedElement.Height = newH;
+            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.X = newX;
+            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Y = newY;
+            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Width = newW;
+            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Height = newH;
             RenderCanvas();
         }
-        else if (_canvasInteractor.ActiveTool == CanvasDocumentInteractor.InteractionMode.Selection && _isDraggingElement && _canvasInteractor.SelectedElement != null)
+        else if (documentsRepository.CurrentDocument.CanvasInteractor.ActiveTool == CanvasDocumentInteractor.InteractionMode.Selection && _isDraggingElement &&
+                 documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement != null)
         {
             float deltaX = (float)e.ClientX - _dragStartX;
             float deltaY = (float)e.ClientY - _dragStartY;
             // Aggiorna la posizione dell'elemento selezionato
-            _canvasInteractor.SelectedElement.X = _elementStartX + deltaX / _canvasInteractor.ZoomManager.Level;
-            _canvasInteractor.SelectedElement.Y = _elementStartY + deltaY / _canvasInteractor.ZoomManager.Level;
+            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.X =
+                _elementStartX + deltaX / documentsRepository.CurrentDocument.CanvasInteractor.ZoomManager.Level;
+            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Y =
+                _elementStartY + deltaY / documentsRepository.CurrentDocument.CanvasInteractor.ZoomManager.Level;
             RenderCanvas();
         }
 
@@ -457,7 +445,7 @@ public partial class DocumentRenderer
 
     private void OnPropertyChanged()
     {
-        if (_canvasInteractor.SelectedElement != null && _canvasReady)
+        if (documentsRepository.CurrentDocument?.CanvasInteractor.SelectedElement != null && _canvasReady)
         {
             this.RenderCanvas();
         }
@@ -492,18 +480,20 @@ public partial class DocumentRenderer
 
     private void OnWheel(WheelEventArgs e)
     {
+        Guard.Against.Null(documentsRepository.CurrentDocument);
+
         // Gestione scrolling orizzontale e verticale
         if (Math.Abs(e.DeltaX) > 0.01)
         {
-            _canvasInteractor.PanOffsetX -= (float)e.DeltaX;
+            documentsRepository.CurrentDocument.CanvasInteractor.PanOffsetX -= (float)e.DeltaX;
         }
 
         if (Math.Abs(e.DeltaY) > 0.01)
         {
             if (e.ShiftKey)
-                _canvasInteractor.PanOffsetX -= (float)e.DeltaY;
+                documentsRepository.CurrentDocument.CanvasInteractor.PanOffsetX -= (float)e.DeltaY;
             else
-                _canvasInteractor.PanOffsetY -= (float)e.DeltaY;
+                documentsRepository.CurrentDocument.CanvasInteractor.PanOffsetY -= (float)e.DeltaY;
         }
 
         ClampPanOffsets(_canvasPixelWidth, _canvasPixelHeight);
@@ -513,20 +503,20 @@ public partial class DocumentRenderer
     // Calcola i limiti di pan e li applica
     private void ClampPanOffsets(float canvasWidth, float canvasHeight)
     {
-        if (_canvasInteractor.CurrentDocument == null) return;
+        if (documentsRepository.CurrentDocument is null) return;
         float docWidth;
         float docHeight;
         float spacing = 20f;
-        if (_canvasInteractor.CurrentLayoutMode == LayoutMode.Vertical)
+        if (documentsRepository.CurrentDocument.CanvasInteractor.CurrentLayoutMode == LayoutMode.Vertical)
         {
             // Larghezza massima tra tutte le pagine
-            docWidth = _canvasInteractor.CurrentDocument.Pages.Max(p => (float)p.Width);
+            docWidth = documentsRepository.CurrentDocument.Pages.Max(p => (float)p.Width);
             // Altezza totale (somma delle altezze + spazi)
-            docHeight = _canvasInteractor.CurrentDocument.Pages.Sum(p => (float)p.Height) + (_canvasInteractor.CurrentDocument.Pages.Count - 1) * spacing;
+            docHeight = documentsRepository.CurrentDocument.Pages.Sum(p => (float)p.Height) + (documentsRepository.CurrentDocument.Pages.Count - 1) * spacing;
         }
         else // SideBySide
         {
-            var pages = _canvasInteractor.CurrentDocument.Pages.ToList();
+            var pages = documentsRepository.CurrentDocument.Pages.ToList();
             float maxRowWidth = 0f;
             float totalHeight = 0f;
             for (int i = 0; i < pages.Count; i += 2)
@@ -549,16 +539,16 @@ public partial class DocumentRenderer
             docHeight = totalHeight;
         }
 
-        float scaledDocWidth = docWidth * _canvasInteractor.ZoomManager.Level;
-        float scaledDocHeight = docHeight * _canvasInteractor.ZoomManager.Level;
+        float scaledDocWidth = docWidth * documentsRepository.CurrentDocument.CanvasInteractor.ZoomManager.Level;
+        float scaledDocHeight = docHeight * documentsRepository.CurrentDocument.CanvasInteractor.ZoomManager.Level;
         // Limiti: non andare oltre il bordo sinistro/superiore (max 0),
         // né oltre il bordo destro/inferiore (min canvas - doc)
         float minPanX = Math.Min(0, canvasWidth - scaledDocWidth);
         float maxPanX = 0;
         float minPanY = Math.Min(0, canvasHeight - scaledDocHeight);
         float maxPanY = 0;
-        _canvasInteractor.PanOffsetX = Math.Min(maxPanX, Math.Max(minPanX, _canvasInteractor.PanOffsetX));
-        _canvasInteractor.PanOffsetY = Math.Min(maxPanY, Math.Max(minPanY, _canvasInteractor.PanOffsetY));
+        documentsRepository.CurrentDocument.CanvasInteractor.PanOffsetX = Math.Min(maxPanX, Math.Max(minPanX, documentsRepository.CurrentDocument.CanvasInteractor.PanOffsetX));
+        documentsRepository.CurrentDocument.CanvasInteractor.PanOffsetY = Math.Min(maxPanY, Math.Max(minPanY, documentsRepository.CurrentDocument.CanvasInteractor.PanOffsetY));
     }
 
     private int _canvasPixelWidth;
@@ -566,153 +556,26 @@ public partial class DocumentRenderer
 
     private void OnPaintSurface(SKPaintSurfaceEventArgs e)
     {
+        Guard.Against.Null(documentsRepository.CurrentDocument);
+        var graphicsContext = GraphicsContext.FromSurface(e.Surface);
+        documentsRepository.CurrentDocument.CanvasInteractor.GraphicsContext = graphicsContext;
+        documentsRepository.CurrentDocument.Surface = e.Surface;
+        documentsRepository.CurrentDocument.Render(GraphicsContext.FromSurface(e.Surface));
         // Salva la dimensione effettiva del canvas
         _canvasPixelWidth = e.Info.Width;
         _canvasPixelHeight = e.Info.Height;
-        var surface = e.Surface;
-        var canvas = surface.Canvas;
-
-        canvas.Clear(SKColors.White);
-        canvas.Save();
-        canvas.Translate(_canvasInteractor.PanOffsetX, _canvasInteractor.PanOffsetY);
-        canvas.Scale(_canvasInteractor.ZoomManager.Level);
-
-        // Create graphics context
-        using var graphicsContext = new GraphicsContext(canvas, 800, 600);
-        System.Diagnostics.Debug.WriteLine(canvas.DeviceClipBounds);
-
-        // Render pages based on layout mode
-        if (_canvasInteractor.CurrentLayoutMode == LayoutMode.Vertical)
-        {
-            RenderPagesVertically(graphicsContext);
-        }
-        else
-        {
-            RenderPagesSideBySide(graphicsContext);
-        }
-
-        // Restore canvas state after zoom transformation
-        canvas.Restore();
     }
 
-    private void RenderPagesVertically(IGraphicsContext context)
-    {
-        var yOffset = 0f;
-        foreach (var page in _canvasInteractor.CurrentDocument!.Pages)
-        {
-            RenderPage(context, page, 0, yOffset);
-            yOffset += (float)page.Height + 20; // Add some spacing between pages
-        }
-    }
-
-    private void RenderPagesSideBySide(IGraphicsContext context)
-    {
-        var pages = _canvasInteractor.CurrentDocument!.Pages.ToList();
-        var maxPageHeight = 0f;
-
-        for (var i = 0; i < pages.Count; i++)
-        {
-            var page = pages[i];
-
-            // If this is an even index (0, 2, 4...), start a new row
-            float xOffset;
-            float yOffset = 0;
-            if (i % 2 == 0)
-            {
-                xOffset = 0f;
-                if (i > 0)
-                {
-                    yOffset += maxPageHeight + 20; // Move to the next row with spacing
-                }
-
-                maxPageHeight = 0f;
-            }
-            else
-            {
-                // Odd index (1, 3, 5...), place to the right of the previous page
-                var previousPage = pages[i - 1];
-                xOffset = (float)previousPage.Width + 20; // Add spacing between side-by-side pages
-            }
-
-            RenderPage(context, page, xOffset, yOffset);
-
-            // Track the maximum height in this row
-            maxPageHeight = Math.Max(maxPageHeight, (float)page.Height);
-        }
-    }
-
-    private void RenderPage(IGraphicsContext context, IPage page, float xOffset, float yOffset)
-    {
-        // Save the current state
-        context.Save();
-
-        try
-        {
-            // Translate to page position
-            context.Translate(xOffset, yOffset);
-
-            // Draw page background
-            using var backgroundPaint = new SKPaint();
-            backgroundPaint.Color = SKColors.White;
-            backgroundPaint.Style = SKPaintStyle.Fill;
-
-            context.DrawRect(new SKRect(0, 0, (float)page.Width, (float)page.Height), backgroundPaint);
-
-            // Draw page border
-            using var borderPaint = new SKPaint();
-            borderPaint.Color = SKColors.LightGray;
-            borderPaint.Style = SKPaintStyle.Stroke;
-            borderPaint.StrokeWidth = CalculateStrokeWidth(1.0f);
-
-            context.DrawRect(new SKRect(0, 0, (float)page.Width, (float)page.Height), borderPaint);
-
-            // Render page elements if they exist
-            var elements = page.GetAllElementsByRenderOrder();
-            foreach (var element in elements)
-            {
-                RenderPageElement(context, element);
-            }
-        }
-        finally
-        {
-            // Restore the previous state
-            context.Restore();
-        }
-    }
-
-    private float CalculateStrokeWidth(float baseWidth)
-    {
-        // Mantiene lo spessore visibile indipendentemente dal zoom
-        // Più il zoom è piccolo, più lo spessore aumenta per rimanere visibile
-        return Math.Max(baseWidth / _canvasInteractor.ZoomManager.Level, 0.5f);
-    }
+    
 
     private int? _resizingHandleIndex;
     private bool _isResizingElement;
     private float _resizeStartX, _resizeStartY;
     private double _elementStartWidth, _elementStartHeight, _elementStartXResize, _elementStartYResize;
 
-    private void RenderPageElement(IGraphicsContext context, IPageElement element)
-    {
-        // Save the current state
-        context.Save();
-
-        try
-        {
-            // Use the element's built-in rendering method
-            // This allows each element type to render itself appropriately
-            element.Render(context);
-        }
-        finally
-        {
-            // Restore the previous state
-            context.Restore();
-        }
-    }
-
     private async Task OnFluentImageSelected(FluentInputFileEventArgs file)
     {
-        if (_canvasInteractor.SelectedPage is null)
+        if (documentsRepository.CurrentDocument?.CanvasInteractor.SelectedPage is null)
         {
             return;
         }
@@ -721,12 +584,12 @@ public partial class DocumentRenderer
         using var ms = new MemoryStream();
         await file.Stream.CopyToAsync(ms);
         var base64 = Convert.ToBase64String(ms.ToArray());
-        var imageElement = new ImageElement(_canvasInteractor.SelectedPage, base64)
+        var imageElement = new ImageElement(eventPublisher, documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage, base64)
         {
             X = 50,
             Y = 50
         };
-        _canvasInteractor.SelectedPage.AddElement(imageElement);
+        documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage.AddElement(imageElement);
         BuildDocumentTree(); // Aggiorna l'albero dopo aver aggiunto un'immagine
         RenderCanvas();
     }
@@ -735,12 +598,12 @@ public partial class DocumentRenderer
     private void BuildDocumentTree()
     {
         _documentTree.Clear();
-        if (_canvasInteractor.CurrentDocument == null) return;
-        foreach (var page in _canvasInteractor.CurrentDocument.Pages)
+        if (documentsRepository.CurrentDocument is null) return;
+        foreach (var page in documentsRepository.CurrentDocument.Pages)
         {
             var treeItem = new TreeViewItem
             {
-                Text = $"Page {page.Name}",
+                Text = $"{page.Name}",
                 Id = page.Id.ToString(),
                 Items = new List<ITreeViewItem>()
             };
@@ -760,7 +623,7 @@ public partial class DocumentRenderer
                 Items = new List<ITreeViewItem>()
             };
             (tree.Items as List<ITreeViewItem>)?.Add(treeItem);
-            foreach (var el in layer.Childrens)
+            foreach (var el in layer.Children)
             {
                 BuildElementNodeRecursive(el, treeItem);
             }
@@ -769,6 +632,11 @@ public partial class DocumentRenderer
 
     private void BuildElementNodeRecursive(IPageElement el, ITreeViewItem tree)
     {
+        if (el.HideFromDocumentStructure)
+        {
+            return;
+        }
+
         var treeItem = new TreeViewItem
         {
             Text = $"{el.Name}",
@@ -779,7 +647,7 @@ public partial class DocumentRenderer
 
         if (el.CanContainChildren)
         {
-            foreach (var child in el.Childrens)
+            foreach (var child in el.Children.Where(x => !x.HideFromDocumentStructure))
             {
                 BuildElementNodeRecursive(child, treeItem);
             }
@@ -824,59 +692,6 @@ public partial class DocumentRenderer
 
     protected override void OnParametersSet()
     {
-    }
-
-    /// <summary>
-    /// Restituisce la pagina e l'offset della pagina dati canvasX/canvasY
-    /// </summary>
-    private (IPage? page, double pageOffsetX, double pageOffsetY) GetPageAtPosition(double canvasX, double canvasY)
-    {
-        if (_canvasInteractor.CurrentDocument == null) return (null, 0, 0);
-        if (_canvasInteractor.CurrentLayoutMode == LayoutMode.Vertical)
-        {
-            double yOffset = 0;
-            foreach (var page in _canvasInteractor.CurrentDocument.Pages)
-            {
-                if (canvasY >= yOffset && canvasY < yOffset + page.Height)
-                {
-                    return (page, 0, yOffset);
-                }
-
-                yOffset += page.Height + 20;
-            }
-        }
-        else // SideBySide
-        {
-            var pages = _canvasInteractor.CurrentDocument.Pages.ToList();
-            double yOffset = 0;
-            double maxPageHeight = 0;
-            for (int i = 0; i < pages.Count; i++)
-            {
-                var page = pages[i];
-                double xOffset;
-                if (i % 2 == 0)
-                {
-                    xOffset = 0;
-                    if (i > 0)
-                        yOffset += maxPageHeight + 20;
-                    maxPageHeight = 0;
-                }
-                else
-                {
-                    var previousPage = pages[i - 1];
-                    xOffset = previousPage.Width + 20;
-                }
-
-                if (canvasX >= xOffset && canvasX < xOffset + page.Width && canvasY >= yOffset && canvasY < yOffset + page.Height)
-                {
-                    return (page, xOffset, yOffset);
-                }
-
-                maxPageHeight = Math.Max(maxPageHeight, page.Height);
-            }
-        }
-
-        return (null, 0, 0);
     }
 
     // Funzione centralizzata per check OS e invalidate canvas

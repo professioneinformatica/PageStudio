@@ -11,6 +11,12 @@
 @code {
     private int currentCount = 0;
 
+    protected override void OnInitialized()
+    {
+        currentCount = new Random().Next(1, 100);
+
+    }
+
     private void IncrementCount()
     {
         currentCount++;

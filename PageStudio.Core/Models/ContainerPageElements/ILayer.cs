@@ -1,6 +1,6 @@
-using System.Collections.Generic;
+using PageStudio.Core.Models.Abstractions;
 
-namespace PageStudio.Core.Interfaces;
+namespace PageStudio.Core.Models.ContainerPageElements;
 
 /// <summary>
 /// Represents a layer within a page that can contain page elements

@@ -1,3 +1,6 @@
+using PageStudio.Core.Models.Documents;
+using PageStudio.Core.Models.Page;
+
 namespace PageStudio.Core.Interfaces;
 
 /// <summary>

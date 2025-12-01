@@ -1,13 +1,18 @@
+using PageStudio.Core.Features.EventsManagement;
 using PageStudio.Core.Interfaces;
+using PageStudio.Core.Models.Abstractions;
 using PageStudio.Core.Models.ContainerPageElements;
+using PageStudio.Core.Models.Documents;
+using SkiaSharp;
 
-namespace PageStudio.Core.Models;
+namespace PageStudio.Core.Models.Page;
 
 /// <summary>
 /// Implementation of IPage interface representing a page in a document
 /// </summary>
 public class Page : IPage
 {
+    private readonly IEventPublisher _eventPublisher;
     private readonly List<ILayer> _layers;
     private readonly ILayer _defaultLayer;
 
@@ -67,8 +72,9 @@ public class Page : IPage
     /// <param name="name">Page name</param>
     /// <param name="width">Page width in points</param>
     /// <param name="height">Page height in points</param>
-    public Page(IDocument document, string name = "Page", double width = 595, double height = 842) // A4 size by default
+    public Page(IEventPublisher eventPublisher, IDocument document, string name = "Page", double width = 595, double height = 842) // A4 size by default
     {
+        _eventPublisher = eventPublisher;
         Document = document;
         Id = Guid.CreateVersion7();
         Name = name;
@@ -82,7 +88,7 @@ public class Page : IPage
         IsActive = false;
 
         // Create and add default layer
-        _defaultLayer = new Layer(this, "Default Layer");
+        _defaultLayer = new Layer(_eventPublisher, this, "Default Layer");
         _layers.Add(_defaultLayer);
     }
 
@@ -148,7 +154,7 @@ public class Page : IPage
     /// <returns>Layers sorted by Z-index</returns>
     public IEnumerable<ILayer> GetLayersByZIndex()
     {
-        return _layers.OrderBy(l => l.ZOrder);
+        return _layers.OrderBy(l => l.ZIndex);
     }
 
     /// <summary>
@@ -169,7 +175,7 @@ public class Page : IPage
         if (element == null)
             throw new ArgumentNullException(nameof(element));
 
-        _defaultLayer.AddChildren(element);
+        _defaultLayer.AddChild(element);
         UpdateModifiedTime();
         return element;
     }
@@ -188,7 +194,7 @@ public class Page : IPage
         if (layer == null)
             throw new ArgumentException($"Layer with ID '{layerId}' not found.");
 
-        layer.AddChildren(element);
+        layer.AddChild(element);
         UpdateModifiedTime();
     }
 
@@ -204,7 +210,7 @@ public class Page : IPage
 
         foreach (var layer in _layers)
         {
-            if (layer.RemoveChildren(elementId))
+            if (layer.RemoveChild(elementId))
             {
                 UpdateModifiedTime();
                 return true;
@@ -293,7 +299,7 @@ public class Page : IPage
         var hasElements = false;
         foreach (var layer in _layers)
         {
-            if (layer.Childrens.Count > 0)
+            if (layer.Children.Count > 0)
             {
                 layer.ClearElements();
                 hasElements = true;
@@ -310,5 +316,44 @@ public class Page : IPage
     private void UpdateModifiedTime()
     {
         ModifiedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Renderizza la pagina su un contesto grafico
+    /// </summary>
+    /// <param name="graphics">Contesto grafico</param>
+    public void Render(
+        IGraphicsContext graphics)
+    {
+        graphics.Save();
+        try
+        {
+            var strokeWidth = Math.Max(1.0f / this.Document.CanvasInteractor.ZoomManager.Level, 0.5f);
+            // graphics.Translate(xOffset, yOffset);
+
+            // Sfondo pagina
+            using var backgroundPaint = new SKPaint();
+            backgroundPaint.Color = SKColors.White;
+            backgroundPaint.Style = SKPaintStyle.Fill;
+            graphics.DrawRect(new SKRect(0, 0, (float)Width, (float)Height), backgroundPaint);
+
+            // Bordo pagina
+            using var borderPaint = new SKPaint();
+            borderPaint.Color = SKColors.LightGray;
+            borderPaint.Style = SKPaintStyle.Stroke;
+            borderPaint.StrokeWidth = strokeWidth;
+            graphics.DrawRect(new SKRect(0, 0, (float)Width, (float)Height), borderPaint);
+
+            // Elementi
+            var elements = GetAllElementsByRenderOrder();
+            foreach (var element in elements)
+            {
+                element.Render(graphics);
+            }
+        }
+        finally
+        {
+            graphics.Restore();
+        }
     }
 }

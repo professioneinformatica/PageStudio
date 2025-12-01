@@ -1,5 +1,8 @@
 using Ardalis.GuardClauses;
+using PageStudio.Core.Features.EventsManagement;
 using PageStudio.Core.Interfaces;
+using PageStudio.Core.Models.Documents;
+using PageStudio.Core.Models.Page;
 using SkiaSharp;
 
 namespace PageStudio.Core.Models.Abstractions;
@@ -9,6 +12,8 @@ namespace PageStudio.Core.Models.Abstractions;
 /// </summary>
 public abstract class PageElement : IPageElement
 {
+    private readonly IEventPublisher _eventPublisher;
+
     /// <summary>
     /// Unique identifier for the element
     /// </summary>
@@ -18,6 +23,12 @@ public abstract class PageElement : IPageElement
     /// Element name/title
     /// </summary>
     public string Name { get; set; }
+
+    /// <summary>
+    /// Indicates whether the element should be excluded from the document structure.
+    /// When set to true, the element will not be part of the logical structure of the document
+    /// </summary>
+    public bool HideFromDocumentStructure { get; set; }
 
     /// <summary>
     /// X coordinate of the element
@@ -94,14 +105,23 @@ public abstract class PageElement : IPageElement
     public bool IsLocked { get; set; }
 
     /// <summary>
+    /// Retrieves the index of a specified child element within the children collection.
+    /// </summary>
+    /// <param name="child">The child element whose index is to be retrieved.</param>
+    /// <returns>The zero-based index of the specified child element within the children collection, or -1 if the child does not exist in the collection.</returns>
+    public int GetChildIndex(IPageElement child) => _children.IndexOf(child);
+
+    /// <summary>
     /// Z-order of the element (higher values are on top)
     /// </summary>
-    public int ZOrder
+    public int ZIndex
     {
-        get => _zOrder;
+        get => Parent?.GetChildIndex(this) ?? 0;
         set
         {
-            _zOrder = value;
+            var oldZIndex = this.ZIndex;
+            Parent?.MoveChildToIndex(this, value);
+            _eventPublisher.Publish(new ZIndexChangedMessage(this, oldZIndex));
         }
     }
 
@@ -120,6 +140,8 @@ public abstract class PageElement : IPageElement
     /// </summary>
     public virtual bool CanContainChildren => false;
 
+    public IPageElement Parent { get; set; }
+
     /// <summary>
     /// Indicates whether the aspect ratio of the element should be maintained during resizing
     /// </summary>
@@ -133,8 +155,8 @@ public abstract class PageElement : IPageElement
     /// <summary>
     /// Collection of child elements
     /// </summary>
-    public virtual IList<IPageElement> Childrens =>
-        CanContainChildren ? _children : Array.Empty<IPageElement>();
+    public virtual IReadOnlyList<IPageElement> Children =>
+        CanContainChildren ? _children.AsReadOnly() : Array.Empty<IPageElement>().AsReadOnly();
 
     /// <summary>
     /// Internal children collection
@@ -148,8 +170,9 @@ public abstract class PageElement : IPageElement
     /// </summary>
     /// <param name="page"></param>
     /// <param name="name">Element name</param>
-    protected PageElement(IPage page, string name = "Element")
+    protected PageElement(IEventPublisher eventPublisher, IPage page, string name = "Element")
     {
+        _eventPublisher = eventPublisher;
         Page = page;
         Id = Guid.CreateVersion7();
         Name = name;
@@ -161,7 +184,7 @@ public abstract class PageElement : IPageElement
         Opacity = 1.0;
         IsVisible = true;
         IsLocked = false;
-        ZOrder = 0;
+        ZIndex = 0;
         CreatedAt = DateTime.UtcNow;
         ModifiedAt = DateTime.UtcNow;
         LockAspectRatio = true;
@@ -198,7 +221,6 @@ public abstract class PageElement : IPageElement
     private SKRect[] handleRects = new SKRect[8]; // 8 handle: 4 angoli, 4 lati
     private readonly float HandleSize = 10f;
     private readonly float HandleHitTestSize = 16f;
-    private int _zOrder;
 
     public int? HitTestHandle(double canvasX, double canvasY)
     {
@@ -223,7 +245,7 @@ public abstract class PageElement : IPageElement
         RenderSelf(graphics);
         if (CanContainChildren)
         {
-            foreach (var child in Childrens.OrderBy(c => c.ZOrder))
+            foreach (var child in Children.OrderBy(c => c.ZIndex))
                 child.Render(graphics);
         }
 
@@ -293,7 +315,7 @@ public abstract class PageElement : IPageElement
     /// Adds an element to the layer
     /// </summary>
     /// <param name="element">Element to add</param>
-    public virtual void AddChildren(IPageElement element)
+    public virtual void AddChild(IPageElement element)
     {
         if (element == null)
             throw new ArgumentNullException(nameof(element));
@@ -301,19 +323,38 @@ public abstract class PageElement : IPageElement
         if (!CanContainChildren)
             throw new InvalidOperationException("This element cannot contain children");
 
-        if (!_children.Contains(element))
-        {
-            _children.Add(element);
-            UpdateModifiedTime();
-        }
+        // rimuovo l'elemento dal parent precedente nel caso in cui fosse già presente
+        element.Parent?.RemoveChild(element);
+
+        element.Parent = this;
+        _children.Add(element);
+        UpdateModifiedTime();
     }
+
+    public bool RemoveChild(IPageElement element)
+    {
+        Guard.Against.Null(element);
+
+        if (!CanContainChildren)
+            return false;
+
+        if (_children.Remove(element))
+        {
+            element.Parent = null;
+            UpdateModifiedTime();
+            return true;
+        }
+
+        return false;
+    }
+
 
     /// <summary>
     /// Removes an element from the layer
     /// </summary>
     /// <param name="elementId">ID of the element to remove</param>
     /// <returns>True if element was removed, false otherwise</returns>
-    public virtual bool RemoveChildren(Guid elementId)
+    public virtual bool RemoveChild(Guid elementId)
     {
         if (!CanContainChildren)
             return false;
@@ -321,12 +362,46 @@ public abstract class PageElement : IPageElement
         var element = _children.FirstOrDefault(e => e.Id == elementId);
         if (element != null)
         {
-            _children.Remove(element);
-            UpdateModifiedTime();
-            return true;
+            return this.RemoveChild(element);
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Moves a child element to a specified index within the children collection.
+    /// </summary>
+    /// <param name="element">The child element to move.</param>
+    /// <param name="newIndex">The target index to move the element to.</param>
+    public void MoveChildToIndex(PageElement element, int newIndex)
+    {
+        if (!CanContainChildren)
+        {
+            return;
+        }
+
+        var oldIndex = _children.IndexOf(element);
+        if (oldIndex < 0)
+            return;
+
+        newIndex = Clamp(newIndex, 0, _children.Count - 1);
+
+        if (oldIndex == newIndex)
+            return;
+
+        _children.RemoveAt(oldIndex);
+
+        // Se rimuovo un elemento prima della nuova posizione,
+        // devo decrementare il target per mantenere la coerenza.
+        if (newIndex > oldIndex)
+            newIndex--;
+
+        _children.Insert(newIndex, element);
+    }
+
+    private static int Clamp(int value, int min, int max)
+    {
+        return Math.Max(min, Math.Min(max, value));
     }
 
     /// <summary>
@@ -350,7 +425,7 @@ public abstract class PageElement : IPageElement
         if (!CanContainChildren)
             return Enumerable.Empty<IPageElement>();
 
-        return _children.OrderBy(e => e.ZOrder);
+        return _children.OrderBy(e => e.ZIndex);
     }
 
     /// <summary>
