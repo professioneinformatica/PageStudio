@@ -1,6 +1,10 @@
 name: SonarQube
 on:
   push:
+    paths-ignore: 
+      - 'LICENSE'
+      - '.github/**'
+      - '*.md'
     branches:
       - main
   pull_request:
