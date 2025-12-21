@@ -49,6 +49,20 @@ PageStudio.sln/
 
 ## Key Technologies
 
+### Parametric Properties and Formulas
+PageStudio supports dynamic properties for page elements using JavaScript-based formulas. This allows elements to react to changes in other elements or document states.
+
+- **Dynamic Engine**: Powered by a custom parametric engine that evaluates JS expressions.
+- **Cross-References**: Properties can reference other elements by name (e.g., `Header.Width + 20`).
+- **Mathematical Functions**: Full support for standard JavaScript `Math` functions (e.g., `Math.max(A.Height, B.Height)`).
+- **Automatic Updates**: Dependencies are automatically tracked, and values are updated only when necessary (lazy evaluation).
+- **Cycle Prevention**: The engine automatically detects and prevents circular dependencies.
+
+Example formulas:
+- `ItemA.Width * 0.5`
+- `Math.sqrt(ItemA.X * ItemA.X + ItemA.Y * ItemA.Y)`
+- `ItemA.Opacity > 0.5 ? true : false`
+
 ### Graphics and Rendering
 - **SkiaSharp**: Primary graphics engine
 - **SkiaSharp.Views.Maui**: MAUI integration

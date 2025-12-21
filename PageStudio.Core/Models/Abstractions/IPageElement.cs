@@ -1,6 +1,7 @@
 
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models.Page;
+using PageStudio.Core.Features.ParametricProperties;
 
 namespace PageStudio.Core.Models.Abstractions;
 
@@ -28,30 +29,16 @@ public interface IPageElement
     /// Indicates whether the element should be hidden from the document structure
     /// </summary>
     bool HideFromDocumentStructure { get; set; }
-    /// <summary>
-    /// X coordinate of the element
-    /// </summary>
-    double X { get; set; }
-    
-    /// <summary>
-    /// Y coordinate of the element
-    /// </summary>
-    double Y { get; set; }
-    
-    /// <summary>
-    /// Width of the element
-    /// </summary>
-    double Width { get; set; }
-    
-    /// <summary>
-    /// Height of the element
-    /// </summary>
-    double Height { get; set; }
-    
-    /// <summary>
-    /// Rotation angle in degrees
-    /// </summary>
-    double Rotation { get; set; }
+
+    // Parametric properties
+    DynamicProperty<double> X { get; }
+    DynamicProperty<double> Y { get; }
+    DynamicProperty<double> Width { get; }
+    DynamicProperty<double> Height { get; }
+    DynamicProperty<double> Rotation { get; }
+    DynamicProperty<double> Opacity { get; }
+    DynamicProperty<bool> IsVisible { get; }
+    DynamicProperty<bool> IsLocked { get; }
 
     /// <summary>
     /// Indicates whether the aspect ratio of the element should remain constant when resizing.
@@ -63,21 +50,6 @@ public interface IPageElement
     /// calculated as Width divided by Height.
     /// </summary>
     public double AspectRatio { get; }
-    
-    /// <summary>
-    /// Element opacity (0.0 to 1.0)
-    /// </summary>
-    double Opacity { get; set; }
-    
-    /// <summary>
-    /// Whether the element is visible
-    /// </summary>
-    bool IsVisible { get; set; }
-    
-    /// <summary>
-    /// Whether the element is locked for editing
-    /// </summary>
-    bool IsLocked { get; set; }
     
     /// <summary>
     /// Z-order of the element (higher values are on top)

@@ -6,15 +6,23 @@
 }
 else
 {
-    <div
-        style="position: fixed; top: 80px; right: 40px; width: 340px; max-width: 90vw; z-index: 1050; background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,0.18); border-radius: 8px; border: 1px solid #ddd; padding: 1.2rem;">
-        <div class="card mb-0">
-            <div class="card-header">
-                <h5 class="mb-0">Element Properties</h5>
-            </div>
-            <div class="card-body">
+    <div class="card properties-panel">
+        <div class="card-header">
+            <h5 class="mb-0">Element Properties</h5>
+        </div>
+        <div class="card-header bg-transparent border-bottom-0">
+            <ul class="nav nav-tabs card-header-tabs">
+                <li class="nav-item">
+                    <button class="@GetTabClass("general")" @onclick='() => SetActiveTab("general")'>General</button>
+                </li>
+                <li class="nav-item">
+                    <button class="@GetTabClass("appearance")" @onclick='() => SetActiveTab("appearance")'>Appearance</button>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body properties-body tab-content">
+            <div class="@GetPaneClass("general")" id="general">
                 <div class="mb-3">
-                    <h6>Selected Element</h6>
                     <p><strong>Name:</strong> @SelectedElement.Name</p>
                     <p><strong>Type:</strong> @SelectedElement.GetType().Name</p>
                 </div>
@@ -24,24 +32,24 @@ else
                         <div class="col-6">
                             <label class="form-label">X:</label>
                             <input type="number" class="form-control form-control-sm"
-                                   @bind="SelectedElement.X" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                                   @bind="SelectedElement.X.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
                         </div>
                         <div class="col-6">
                             <label class="form-label">Y:</label>
                             <input type="number" class="form-control form-control-sm"
-                                   @bind="SelectedElement.Y" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                                   @bind="SelectedElement.Y.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
                         </div>
                     </div>
                     <div class="row mt-2 align-items-end">
                         <div class="col-6">
                             <label class="form-label">Width:</label>
                             <input type="number" class="form-control form-control-sm"
-                                   @bind="SelectedElement.Width" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                                   @bind="SelectedElement.Width.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
                         </div>
                         <div class="col-6">
                             <label class="form-label">Height:</label>
                             <input type="number" class="form-control form-control-sm"
-                                   @bind="SelectedElement.Height" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                                   @bind="SelectedElement.Height.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
                         </div>
                     </div>
                     <div class="mt-2 d-flex align-items-center gap-2">
@@ -59,46 +67,7 @@ else
                         <span class="text-muted small">Rapporto: @SelectedElement?.AspectRatio.ToString("0.00")</span>
                     </div>
                 </div>
-                <div class="mb-3">
-                    <h6>Appearance</h6>
-                    <div class="row">
-                        <div class="col-6">
-                            <label class="form-label">Opacity:</label>
-                            @if (SelectedElement is not null)
-                            {
-                                <input type="range" class="form-range" min="0" max="1" step="0.1"
-                                       @bind="SelectedElement.Opacity" @bind:after="OnPropertyChanged.InvokeAsync"/>
-                                <small class="text-muted">@SelectedElement.Opacity.ToString("F1")</small>
-                            }
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label">Rotation:</label>
-                            @if (SelectedElement is not null)
-                            {
-                                <input type="number" class="form-control form-control-sm"
-                                       @bind="SelectedElement.Rotation" @bind:after="OnPropertyChanged.InvokeAsync"/>
-                            }
-                        </div>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <div class="form-check">
-                        @if (SelectedElement is not null)
-                        {
-                            <input class="form-check-input" type="checkbox"
-                                   @bind="SelectedElement.IsVisible" @bind:after="OnPropertyChanged.InvokeAsync"/>
-                        }
-                        <label class="form-check-label">Visible</label>
-                    </div>
-                    <div class="form-check">
-                        @if (SelectedElement is not null)
-                        {
-                            <input class="form-check-input" type="checkbox"
-                                   @bind="SelectedElement.IsLocked" @bind:after="OnPropertyChanged.InvokeAsync"/>
-                        }
-                        <label class="form-check-label">Locked</label>
-                    </div>
-                </div>
+
                 @if (SelectedElement is TextElement textElement)
                 {
                     <div class="mb-3">
@@ -122,6 +91,50 @@ else
                         </div>
                     </div>
                 }
+            </div>
+
+            <div class="@GetPaneClass("appearance")" id="appearance">
+                <div class="mb-3">
+                    <h6>Appearance</h6>
+                    <div class="row">
+                        <div class="col-6">
+                            <label class="form-label">Opacity:</label>
+                            @if (SelectedElement is not null)
+                            {
+                                <input type="range" class="form-range" min="0" max="1" step="0.1"
+                                       @bind="SelectedElement.Opacity.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                                <small class="text-muted">@SelectedElement.Opacity.Value.ToString("F1")</small>
+                            }
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Rotation:</label>
+                            @if (SelectedElement is not null)
+                            {
+                                <input type="number" class="form-control form-control-sm"
+                                       @bind="SelectedElement.Rotation.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <h6>Visibility & Status</h6>
+                    <div class="form-check">
+                        @if (SelectedElement is not null)
+                        {
+                            <input class="form-check-input" type="checkbox"
+                                   @bind="SelectedElement.IsVisible.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                        }
+                        <label class="form-check-label">Visible</label>
+                    </div>
+                    <div class="form-check">
+                        @if (SelectedElement is not null)
+                        {
+                            <input class="form-check-input" type="checkbox"
+                                   @bind="SelectedElement.IsLocked.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                        }
+                        <label class="form-check-label">Locked</label>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

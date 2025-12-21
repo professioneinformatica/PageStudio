@@ -132,7 +132,7 @@ public class ExportService : IExportService
             var sortedElements = page.GetAllElementsByRenderOrder();
             foreach (var element in sortedElements)
             {
-                if (element.IsVisible)
+                if (element.IsVisible.Value)
                 {
                     element.Render(graphics);
                 }
@@ -200,7 +200,7 @@ public class ExportService : IExportService
         var sortedElements = page.GetAllElementsByRenderOrder();
         foreach (var element in sortedElements)
         {
-            if (element.IsVisible)
+            if (element.IsVisible.Value)
             {
                 element.Render(graphics);
             }

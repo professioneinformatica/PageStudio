@@ -8,7 +8,7 @@ public class DocumentZoomChangedEventHandler(IDocumentsRepository documentsRepos
 {
     public async Task HandleAsync(CanvasDocumentInteractor.DocumentZoomChangedMessage e, CancellationToken cancellationToken = default)
     {
-        e.CanvasDocumentInteractor.RenderDocument();
+        // e.CanvasDocumentInteractor.RenderDocument();
         await Task.CompletedTask;
     }
 }

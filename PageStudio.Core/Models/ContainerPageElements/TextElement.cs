@@ -145,8 +145,8 @@ public class TextElement : PageElement
         // Calculate text position based on alignment
         var x = TextAlign switch
         {
-            SKTextAlign.Center => (float)Width / 2,
-            SKTextAlign.Right => (float)Width,
+            SKTextAlign.Center => (float)Width.Value / 2,
+            SKTextAlign.Right => (float)Width.Value,
             _ => 0
         };
 
@@ -166,19 +166,21 @@ public class TextElement : PageElement
         var clone = new TextElement(_eventPublisher, this.Page, Text, FontFamily, FontSize)
         {
             Name = Name,
-            X = X,
-            Y = Y,
-            Width = Width,
-            Height = Height,
-            Rotation = Rotation,
-            Opacity = Opacity,
-            IsVisible = IsVisible,
-            IsLocked = IsLocked,
             ZIndex = ZIndex,
             FontStyle = FontStyle,
             TextColor = TextColor,
-            TextAlign = TextAlign
+            TextAlign = TextAlign,
+            LockAspectRatio = LockAspectRatio
         };
+
+        clone.X.Formula = X.Formula;
+        clone.Y.Formula = Y.Formula;
+        clone.Width.Formula = Width.Formula;
+        clone.Height.Formula = Height.Formula;
+        clone.Rotation.Formula = Rotation.Formula;
+        clone.Opacity.Formula = Opacity.Formula;
+        clone.IsVisible.Formula = IsVisible.Formula;
+        clone.IsLocked.Formula = IsLocked.Formula;
 
         return clone;
     }
@@ -190,8 +192,7 @@ public class TextElement : PageElement
     {
         if (string.IsNullOrEmpty(Text))
         {
-            Width = 100;
-            Height = FontSize;
+            SetDimension(100, FontSize);
             return;
         }
 
@@ -202,8 +203,7 @@ public class TextElement : PageElement
 
         font.MeasureText(Text, out var textBounds, paint);
 
-        Width = textBounds.Width;
-        Height = textBounds.Height;
+        SetDimension(textBounds.Width, textBounds.Height);
     }
 
     /// <summary>

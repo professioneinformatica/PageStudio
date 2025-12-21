@@ -8,7 +8,7 @@
 
 @if (this.AssignedRenderMode is not InteractiveWebAssemblyRenderMode)
 {
-    <WebAssemblyLoader RefreshIntervalSeconds="3"></WebAssemblyLoader>
+    <WebAssemblyLoader RefreshIntervalSeconds="2"></WebAssemblyLoader>
 }
 else
 {
@@ -33,7 +33,8 @@ else
                     {
                         <div class="mb-3">
                             <h6>Current Document: @documentsRepository.CurrentDocument.Name</h6>
-                            <p><small class="text-muted">Pages: @documentsRepository.CurrentDocument.Pages.Count()</small>
+                            <p><small
+                                    class="text-muted">Pages: @documentsRepository.CurrentDocument.Pages.Count()</small>
                             </p>
                             <p>
                                 <small
@@ -102,14 +103,16 @@ else
                                     <span class="text-muted small">Zoom:</span>
                                     <div class="btn-group btn-group-sm" role="group">
                                         <button class="btn btn-outline-secondary"
-                                                @onclick="@documentsRepository.CurrentDocument.CanvasInteractor.ZoomManager.ZoomOut" title="Zoom Out">
+                                                @onclick="@OnZoomOutClickedAsync"
+                                                title="Zoom Out">
                                             <i class="bi bi-zoom-out"></i>
                                         </button>
                                         <button class="btn btn-outline-secondary disabled" disabled>
                                             @((documentsRepository.CurrentDocument.CanvasInteractor.ZoomManager.Level * 100).ToString("F0"))%
                                         </button>
                                         <button class="btn btn-outline-secondary"
-                                                @onclick="@documentsRepository.CurrentDocument.CanvasInteractor.ZoomManager.ZoomIn" title="Zoom In">
+                                                @onclick="@OnZoomInClickedAsync"
+                                                title="Zoom In">
                                             <i class="bi bi-zoom-in"></i>
                                         </button>
                                     </div>
@@ -182,19 +185,28 @@ else
 
                     </div>
                     <div class="card-footer">
-                        <div class="status-bar text-end small">
-                            <span>X: @_mouseX.ToString("F0")&nbsp;&nbsp;Y: @_mouseY.ToString("F0")</span>
-                            <span class="mx-3">|</span>
-                            <span>
-                                <strong>Pagina selezionata:</strong> @(documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage != null ? documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage.Name : "-")
-                            </span>
-                            <span class="mx-3">|</span>
-                            <span>
-                                <strong>Posizione su pagina:</strong>
-                                @(_hoveredPage != null && _mousePageX.HasValue && _mousePageY.HasValue
-                                    ? $"X: {_mousePageX.Value:F0} Y: {_mousePageY.Value:F0} (pagina: {_hoveredPage.Name})"
-                                    : "-")
-                            </span>
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="status-bar text-end small">
+
+                                    <span>X: @_mouseX.ToString("F0")&nbsp;&nbsp;Y: @_mouseY.ToString("F0")</span>
+                                    <span class="mx-3">|</span>
+                                    <span>
+                                        <strong>Pagina selezionata:</strong> @(documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage != null ? documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage.Name : "-")
+                                    </span>
+                                    <span class="mx-3">|</span>
+                                    <span>
+                                        <strong>Posizione su pagina:</strong>
+                                        @(_hoveredPage != null && _mousePageX.HasValue && _mousePageY.HasValue
+                                            ? $"X: {_mousePageX.Value:F0} Y: {_mousePageY.Value:F0} (pagina: {_hoveredPage.Name})"
+                                            : "-")
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <FluentTextArea Rows="5" Resize="TextAreaResize.Vertical" Class="w-100">
+                            </FluentTextArea>
                         </div>
                     </div>
                 </div>

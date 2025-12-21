@@ -105,8 +105,8 @@ public partial class Document(IEventPublisher eventPublisher, ILogger<Document> 
                 FontFamily = "Arial",
                 FontSize = 24,
                 TextColor = SKColors.Gray,
-                X = 10,
-                Y = 10,
+                X = { Value = 10 },
+                Y = { Value = 10 },
                 HideFromDocumentStructure = true
             });
 
@@ -116,8 +116,8 @@ public partial class Document(IEventPublisher eventPublisher, ILogger<Document> 
                 FontFamily = "Arial",
                 FontSize = 16,
                 TextColor = SKColors.LightGray,
-                X = title.X,
-                Y = title.Height + 10,
+                X = { Value = title.X.Value },
+                Y = { Value = title.Height.Value + 10 },
                 HideFromDocumentStructure = true
             });
         }
@@ -215,8 +215,8 @@ public partial class Document(IEventPublisher eventPublisher, ILogger<Document> 
         var textElement = new TextElement(eventPublisher, documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage, request.TextContent, request.FontFamily,
             request.FontSize)
         {
-            X = 50,
-            Y = 50,
+            X = { Value = 50 },
+            Y = { Value = 50 },
             ZIndex = 1
         };
         // Aggiungi alla pagina selezionata
@@ -243,8 +243,8 @@ public partial class Document(IEventPublisher eventPublisher, ILogger<Document> 
             var (canvasX, canvasY) = documentsRepository.CurrentDocument.CanvasInteractor.ToCanvasCoordinates(e.OffsetX, e.OffsetY);
             if (documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement != null)
             {
-                double localX = canvasX - documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.X;
-                double localY = canvasY - documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Y;
+                double localX = canvasX - documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.X.Value;
+                double localY = canvasY - documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Y.Value;
                 var handleIdx = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement is Core.Models.Abstractions.PageElement pe
                     ? pe.HitTestHandle(localX, localY)
                     : null;
@@ -254,10 +254,10 @@ public partial class Document(IEventPublisher eventPublisher, ILogger<Document> 
                     _resizingHandleIndex = handleIdx;
                     _resizeStartX = (float)e.ClientX;
                     _resizeStartY = (float)e.ClientY;
-                    _elementStartWidth = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Width;
-                    _elementStartHeight = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Height;
-                    _elementStartXResize = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.X;
-                    _elementStartYResize = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Y;
+                    _elementStartWidth = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Width.Value;
+                    _elementStartHeight = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Height.Value;
+                    _elementStartXResize = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.X.Value;
+                    _elementStartYResize = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Y.Value;
                     return;
                 }
             }
@@ -271,8 +271,8 @@ public partial class Document(IEventPublisher eventPublisher, ILogger<Document> 
                     _isDraggingElement = true;
                     _dragStartX = (float)e.ClientX;
                     _dragStartY = (float)e.ClientY;
-                    _elementStartX = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.X;
-                    _elementStartY = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Y;
+                    _elementStartX = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.X.Value;
+                    _elementStartY = documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Y.Value;
                     return;
                 }
             }
@@ -420,10 +420,10 @@ public partial class Document(IEventPublisher eventPublisher, ILogger<Document> 
             // Limiti minimi
             newW = Math.Max(10, newW);
             newH = Math.Max(10, newH);
-            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.X = newX;
-            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Y = newY;
-            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Width = newW;
-            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Height = newH;
+            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.X.Value = newX;
+            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Y.Value = newY;
+            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Width.Value = newW;
+            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Height.Value = newH;
             RenderCanvas();
         }
         else if (documentsRepository.CurrentDocument.CanvasInteractor.ActiveTool == CanvasDocumentInteractor.InteractionMode.Selection && _isDraggingElement &&
@@ -432,9 +432,9 @@ public partial class Document(IEventPublisher eventPublisher, ILogger<Document> 
             float deltaX = (float)e.ClientX - _dragStartX;
             float deltaY = (float)e.ClientY - _dragStartY;
             // Aggiorna la posizione dell'elemento selezionato
-            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.X =
+            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.X.Value =
                 _elementStartX + deltaX / documentsRepository.CurrentDocument.CanvasInteractor.ZoomManager.Level;
-            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Y =
+            documentsRepository.CurrentDocument.CanvasInteractor.SelectedElement.Y.Value =
                 _elementStartY + deltaY / documentsRepository.CurrentDocument.CanvasInteractor.ZoomManager.Level;
             RenderCanvas();
         }
@@ -554,19 +554,35 @@ public partial class Document(IEventPublisher eventPublisher, ILogger<Document> 
     private int _canvasPixelWidth;
     private int _canvasPixelHeight;
 
+    private async Task OnZoomOutClickedAsync()
+    {
+        Guard.Against.Null(documentsRepository.CurrentDocument);
+        documentsRepository.CurrentDocument.CanvasInteractor.ZoomManager.ZoomOut();
+        this.RenderCanvas();
+        await Task.CompletedTask;
+    }
+
+    private async Task OnZoomInClickedAsync()
+    {
+        Guard.Against.Null(documentsRepository.CurrentDocument);
+        documentsRepository.CurrentDocument.CanvasInteractor.ZoomManager.ZoomIn();
+        this.RenderCanvas();
+        await Task.CompletedTask;
+    }
+
     private void OnPaintSurface(SKPaintSurfaceEventArgs e)
     {
         Guard.Against.Null(documentsRepository.CurrentDocument);
         var graphicsContext = GraphicsContext.FromSurface(e.Surface);
         documentsRepository.CurrentDocument.CanvasInteractor.GraphicsContext = graphicsContext;
         documentsRepository.CurrentDocument.Surface = e.Surface;
-        documentsRepository.CurrentDocument.Render(GraphicsContext.FromSurface(e.Surface));
+
+        documentsRepository.CurrentDocument.Render(graphicsContext);
         // Salva la dimensione effettiva del canvas
         _canvasPixelWidth = e.Info.Width;
         _canvasPixelHeight = e.Info.Height;
     }
 
-    
 
     private int? _resizingHandleIndex;
     private bool _isResizingElement;
@@ -575,7 +591,8 @@ public partial class Document(IEventPublisher eventPublisher, ILogger<Document> 
 
     private async Task OnFluentImageSelected(FluentInputFileEventArgs file)
     {
-        if (documentsRepository.CurrentDocument?.CanvasInteractor.SelectedPage is null)
+        Guard.Against.Null(documentsRepository.CurrentDocument);
+        if (documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage is null)
         {
             return;
         }
@@ -586,8 +603,8 @@ public partial class Document(IEventPublisher eventPublisher, ILogger<Document> 
         var base64 = Convert.ToBase64String(ms.ToArray());
         var imageElement = new ImageElement(eventPublisher, documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage, base64)
         {
-            X = 50,
-            Y = 50
+            X = { Value = 50 },
+            Y = { Value = 50 }
         };
         documentsRepository.CurrentDocument.CanvasInteractor.SelectedPage.AddElement(imageElement);
         BuildDocumentTree(); // Aggiorna l'albero dopo aver aggiunto un'immagine

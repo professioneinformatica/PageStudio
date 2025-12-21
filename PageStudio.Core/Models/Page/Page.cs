@@ -251,7 +251,7 @@ public class Page : IPage
         // Process layers by their Z-index (lowest to highest)
         foreach (var layer in GetLayersByZIndex())
         {
-            if (layer.IsVisible)
+            if (layer.IsVisible.Value)
             {
                 // Add elements from this layer sorted by their Z-order
                 result.AddRange(layer.GetElementsByZOrder());
@@ -282,7 +282,7 @@ public class Page : IPage
 
         foreach (var layer in _layers)
         {
-            if (layer.IsVisible)
+            if (layer.IsVisible.Value)
             {
                 result.AddRange(layer.GetElementsAtPosition(x, y));
             }

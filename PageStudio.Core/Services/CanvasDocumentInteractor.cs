@@ -1,10 +1,4 @@
-using PageStudio.Core.Models;
 using PageStudio.Core.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using Ardalis.GuardClauses;
 using PageStudio.Core.Features.EventsManagement;
 using PageStudio.Core.Models.Abstractions;
 using PageStudio.Core.Models.Documents;
@@ -32,14 +26,13 @@ namespace PageStudio.Core.Services
         public float PageSpacing { get; set; } = 20f;
 
         public readonly ZoomManager ZoomManager = new();
-        private IDocument? _currentDocument;
 
-        public IDocument? CurrentDocument
+        public IDocument CurrentDocument
         {
-            get => _currentDocument;
-            set
+            get;
+            init
             {
-                _currentDocument = value;
+                field = value;
                 SelectedPage = null;
                 SelectedElement = null;
             }
@@ -47,8 +40,9 @@ namespace PageStudio.Core.Services
 
         public record DocumentZoomChangedMessage(CanvasDocumentInteractor CanvasDocumentInteractor) : IEvent;
 
-        public CanvasDocumentInteractor(IEventPublisher eventPublisher)
+        public CanvasDocumentInteractor(IEventPublisher eventPublisher, IDocument document)
         {
+            this.CurrentDocument = document;
             this.ZoomManager.ZoomChanged += () => { eventPublisher.Publish(new DocumentZoomChangedMessage(this)); };
         }
 
@@ -59,9 +53,6 @@ namespace PageStudio.Core.Services
             if (this.GraphicsContext is null)
                 return;
             
-            if (this.CurrentDocument is null)
-                return;
-            
             this.CurrentDocument.Render(this.GraphicsContext);
         }
         // Element selection
@@ -70,15 +61,9 @@ namespace PageStudio.Core.Services
         // Pagina attualmente selezionata
         public IPage? SelectedPage
         {
-            get { return this.CurrentDocument is not null && this.SelectedPageIndex.HasValue ? this.CurrentDocument.Pages[this.SelectedPageIndex.Value] : null; }
+            get => this.SelectedPageIndex.HasValue ? this.CurrentDocument.Pages[this.SelectedPageIndex.Value] : null;
 
-            set
-            {
-                if (value is null)
-                    this.SelectedPageIndex = null;
-                else
-                    this.SelectedPageIndex = this.CurrentDocument?.Pages.IndexOf(value);
-            }
+            set => this.SelectedPageIndex = value is null ? null : this.CurrentDocument.Pages.IndexOf(value);
         }
 
         public int? SelectedPageIndex { get; set; }
@@ -96,10 +81,6 @@ namespace PageStudio.Core.Services
         /// </returns>
         public (IPage? page, double pageOffsetX, double pageOffsetY) GetPageAtPosition(double canvasX, double canvasY)
         {
-            if (this.CurrentDocument is null)
-            {
-                return (null, 0, 0);
-            }
 
             double yOffset = 0;
             if (CurrentLayoutMode == LayoutMode.Vertical)
