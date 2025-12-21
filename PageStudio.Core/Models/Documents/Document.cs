@@ -4,6 +4,7 @@ using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models.Abstractions;
 using PageStudio.Core.Models.Page;
 using PageStudio.Core.Services;
+using PageStudio.Core.Features.ParametricProperties;
 using SkiaSharp;
 
 namespace PageStudio.Core.Models.Documents;
@@ -25,6 +26,8 @@ public record ZIndexChangedMessage(IPageElement element, int oldZIndex) : IEvent
 public class Document : IDocument
 {
     private readonly IEventPublisher _eventPublisher;
+
+    public ParametricEngine ParametricEngine { get; } = new();
     private readonly List<IPage> _pages;
 
     public CanvasDocumentInteractor CanvasInteractor { get; set; }
@@ -92,7 +95,7 @@ public class Document : IDocument
         CreatedAt = DateTime.UtcNow;
         ModifiedAt = DateTime.UtcNow;
 
-        this.CanvasInteractor = new(eventPublisher);
+        this.CanvasInteractor = new(eventPublisher, this);
         
         // Initialize default page format (A4 Portrait)
         DefaultPageFormat = PageFormat.Create(StandardPageFormat.A4, PageOrientation.Portrait);

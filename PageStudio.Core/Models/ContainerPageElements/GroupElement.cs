@@ -50,17 +50,19 @@ public class GroupElement : PageElement
     {
         var clone = new GroupElement(_eventPublisher, this.Page, Name)
         {
-            X = X,
-            Y = Y,
-            Width = Width,
-            Height = Height,
-            Rotation = Rotation,
-            Opacity = Opacity,
-            IsVisible = IsVisible,
-            IsLocked = IsLocked,
             ZIndex = ZIndex,
-            ModifiedAt = ModifiedAt
+            ModifiedAt = ModifiedAt,
+            LockAspectRatio = LockAspectRatio
         };
+        
+        clone.X.Formula = X.Formula;
+        clone.Y.Formula = Y.Formula;
+        clone.Width.Formula = Width.Formula;
+        clone.Height.Formula = Height.Formula;
+        clone.Rotation.Formula = Rotation.Formula;
+        clone.Opacity.Formula = Opacity.Formula;
+        clone.IsVisible.Formula = IsVisible.Formula;
+        clone.IsLocked.Formula = IsLocked.Formula;
 
         // Clone children
         foreach (var child in Children)

@@ -73,7 +73,7 @@ public class ImageElement : PageElement
             LoadBitmapFromBase64(ImageBase64);
         if (_bitmap == null)
             return;
-        var destRect = new SKRect(0, 0, (float)Width, (float)Height);
+        var destRect = new SKRect(0, 0, (float)Width.Value, (float)Height.Value);
         using var image = SKImage.FromBitmap(_bitmap);
         graphics.DrawImage(image, destRect);
     }
@@ -86,15 +86,19 @@ public class ImageElement : PageElement
         var clone = new ImageElement(_eventPublisher, this.Page, ImageBase64)
         {
             Name = Name,
-            X = X,
-            Y = Y,
-            Rotation = Rotation,
-            Opacity = Opacity,
-            IsVisible = IsVisible,
-            IsLocked = IsLocked,
-            ZIndex = ZIndex
+            ZIndex = ZIndex,
+            LockAspectRatio = LockAspectRatio
         };
-        clone.SetDimension(this.Width, this.Height);
+        
+        clone.X.Formula = X.Formula;
+        clone.Y.Formula = Y.Formula;
+        clone.Width.Formula = Width.Formula;
+        clone.Height.Formula = Height.Formula;
+        clone.Rotation.Formula = Rotation.Formula;
+        clone.Opacity.Formula = Opacity.Formula;
+        clone.IsVisible.Formula = IsVisible.Formula;
+        clone.IsLocked.Formula = IsLocked.Formula;
+        
         return clone;
     }
 }

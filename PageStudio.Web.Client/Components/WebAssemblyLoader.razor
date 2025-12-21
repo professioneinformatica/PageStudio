@@ -10,7 +10,7 @@
     </div>
 }
 else
-{
+{ 
     <div>
         <p>WebAssembly inizializzato!</p>
     </div>
@@ -21,12 +21,12 @@ else
     private int _refreshCount;
     private Timer? _refreshTimer;
 
-    [Parameter] public int RefreshIntervalSeconds { get; set; } = 3;
-    private const int MaxRefreshCount = 3;
+    [Parameter] public int RefreshIntervalSeconds { get; set; } = 1;
+    private const int MaxRefreshCount = 5;
     private const string RefreshCountQueryKey = "refreshCount";
 
     protected override void OnInitialized()
-    {
+    { 
         var uri = new Uri(Navigation.Uri);
         var query = QueryHelpers.ParseQuery(uri.Query);
         if (query.TryGetValue(RefreshCountQueryKey, out var value) && int.TryParse(value.ToString(), out var parsedCount))
@@ -45,6 +45,12 @@ else
             _refreshTimer.Elapsed += (sender, args) => OnRefreshTimerElapsed(uri, query);
             _refreshTimer.AutoReset = false;
             _refreshTimer.Start();
+        }
+
+        if (_isInteractive)
+        {
+            this.InvokeAsync(() => { Navigation.NavigateTo(uri.AbsoluteUri, forceLoad: true); }
+            );
         }
     }
 

@@ -3,6 +3,7 @@ using PageStudio.Core.Features.EventsManagement;
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models.Documents;
 using PageStudio.Core.Models.Page;
+using PageStudio.Core.Features.ParametricProperties;
 using SkiaSharp;
 
 namespace PageStudio.Core.Models.Abstractions;
@@ -13,103 +14,44 @@ namespace PageStudio.Core.Models.Abstractions;
 public abstract class PageElement : IPageElement
 {
     private readonly IEventPublisher _eventPublisher;
+    
+    // Parametric properties
+    public DynamicProperty<double> X { get; }
+    public DynamicProperty<double> Y { get; }
+    public DynamicProperty<double> Width { get; }
+    public DynamicProperty<double> Height { get; }
+    public DynamicProperty<double> Rotation { get; }
+    public DynamicProperty<double> Opacity { get; }
+    public DynamicProperty<bool> IsVisible { get; }
+    public DynamicProperty<bool> IsLocked { get; }
 
     /// <summary>
     /// Unique identifier for the element
     /// </summary>
     public Guid Id { get; }
 
+    private string _name;
     /// <summary>
     /// Element name/title
     /// </summary>
-    public string Name { get; set; }
+    public string Name
+    {
+        get => _name;
+        set
+        {
+            if (_name != value)
+            {
+                Page.Document.ParametricEngine.RegisterElement(value, Id);
+                _name = value;
+            }
+        }
+    }
 
     /// <summary>
     /// Indicates whether the element should be excluded from the document structure.
     /// When set to true, the element will not be part of the logical structure of the document
     /// </summary>
     public bool HideFromDocumentStructure { get; set; }
-
-    /// <summary>
-    /// X coordinate of the element
-    /// </summary>
-    public double X { get; set; }
-
-    /// <summary>
-    /// Y coordinate of the element
-    /// </summary>
-    public double Y { get; set; }
-
-    private double _width;
-
-    /// <summary>
-    /// Width of the element
-    /// </summary>
-    public double Width
-    {
-        get => _width;
-        set
-        {
-            if (this.LockAspectRatio)
-            {
-                this._height = Math.Round(value / this.AspectRatio);
-            }
-
-            _width = value;
-        }
-    }
-
-    protected void SetDimension(double width, double height)
-    {
-        _width = width;
-        _height = height;
-    }
-
-    private double _height;
-
-    /// <summary>
-    /// Height of the element
-    /// </summary>
-    public double Height
-    {
-        get => _height;
-        set
-        {
-            if (this.LockAspectRatio)
-            {
-                this._width = Math.Round(value * this.AspectRatio);
-            }
-
-            _height = value;
-        }
-    }
-
-    /// <summary>
-    /// Rotation angle in degrees
-    /// </summary>
-    public double Rotation { get; set; }
-
-    /// <summary>
-    /// Element opacity (0.0 to 1.0)
-    /// </summary>
-    public double Opacity { get; set; }
-
-    /// <summary>
-    /// Whether the element is visible
-    /// </summary>
-    public bool IsVisible { get; set; }
-
-    /// <summary>
-    /// Whether the element is locked for editing
-    /// </summary>
-    public bool IsLocked { get; set; }
-
-    /// <summary>
-    /// Retrieves the index of a specified child element within the children collection.
-    /// </summary>
-    /// <param name="child">The child element whose index is to be retrieved.</param>
-    /// <returns>The zero-based index of the specified child element within the children collection, or -1 if the child does not exist in the collection.</returns>
-    public int GetChildIndex(IPageElement child) => _children.IndexOf(child);
 
     /// <summary>
     /// Z-order of the element (higher values are on top)
@@ -124,6 +66,8 @@ public abstract class PageElement : IPageElement
             _eventPublisher.Publish(new ZIndexChangedMessage(this, oldZIndex));
         }
     }
+
+    public int GetChildIndex(IPageElement child) => _children.IndexOf(child);
 
     /// <summary>
     /// Element creation timestamp
@@ -150,7 +94,7 @@ public abstract class PageElement : IPageElement
     /// <summary>
     /// Aspect ratio of the element
     /// </summary>
-    public double AspectRatio => Width / Height;
+    public double AspectRatio => (Width.Value != 0) ? (Width.Value / (Height.Value != 0 ? Height.Value : 1)) : 1;
 
     /// <summary>
     /// Collection of child elements
@@ -165,9 +109,16 @@ public abstract class PageElement : IPageElement
 
     public IPage Page { get; }
 
+    protected void SetDimension(double width, double height)
+    {
+        Width.Value = width;
+        Height.Value = height;
+    }
+
     /// <summary>
     /// Initializes a new instance of PageElement
     /// </summary>
+    /// <param name="eventPublisher"></param>
     /// <param name="page"></param>
     /// <param name="name">Element name</param>
     protected PageElement(IEventPublisher eventPublisher, IPage page, string name = "Element")
@@ -175,16 +126,20 @@ public abstract class PageElement : IPageElement
         _eventPublisher = eventPublisher;
         Page = page;
         Id = Guid.CreateVersion7();
-        Name = name;
-        X = 0;
-        Y = 0;
-        Width = 100;
-        Height = 100;
-        Rotation = 0;
-        Opacity = 1.0;
-        IsVisible = true;
-        IsLocked = false;
-        ZIndex = 0;
+        _name = name;
+        
+        var engine = page.Document.ParametricEngine;
+        engine.RegisterElement(name, Id);
+        
+        X = engine.CreateProperty<double>(Id, "X", "0");
+        Y = engine.CreateProperty<double>(Id, "Y", "0");
+        Width = engine.CreateProperty<double>(Id, "Width", "100");
+        Height = engine.CreateProperty<double>(Id, "Height", "100");
+        Rotation = engine.CreateProperty<double>(Id, "Rotation", "0");
+        Opacity = engine.CreateProperty<double>(Id, "Opacity", "1.0");
+        IsVisible = engine.CreateProperty<bool>(Id, "IsVisible", "true");
+        IsLocked = engine.CreateProperty<bool>(Id, "IsLocked", "false");
+
         CreatedAt = DateTime.UtcNow;
         ModifiedAt = DateTime.UtcNow;
         LockAspectRatio = true;
@@ -197,17 +152,17 @@ public abstract class PageElement : IPageElement
     public void Render(IGraphicsContext graphics)
     {
         Guard.Against.Null(graphics);
-        if (!IsVisible)
+        if (!IsVisible.Value)
             return;
 
         graphics.Save();
         try
         {
             // Apply transformations
-            graphics.Translate((float)X, (float)Y);
+            graphics.Translate((float)X.Value, (float)Y.Value);
 
-            if (Math.Abs(Rotation) > 0.001)
-                graphics.Rotate((float)Rotation);
+            if (Math.Abs(Rotation.Value) > 0.001)
+                graphics.Rotate((float)Rotation.Value);
 
             // Apply opacity by modifying paint alpha
             RenderCore(graphics);
@@ -263,12 +218,13 @@ public abstract class PageElement : IPageElement
                     StrokeWidth = 2,
                     PathEffect = SkiaSharp.SKPathEffect.CreateDash(new float[] { 3, 3 }, 0)
                 };
-                canvas.DrawRect(0, 0, (float)Width, (float)Height, selectionPaint);
+
+                var w = (float)Width.Value;
+                var h = (float)Height.Value;
+                canvas.DrawRect(0, 0, w, h, selectionPaint);
 
                 var x = 0f;
                 var y = 0f;
-                var w = (float)this.Width;
-                var h = (float)this.Height;
                 // Calcola le posizioni degli 8 handle
                 handleRects[0] = new SKRect(x - HandleSize / 2, y - HandleSize / 2, x + HandleSize / 2, y + HandleSize / 2); // top-left
                 handleRects[1] = new SKRect(x + w / 2 - HandleSize / 2, y - HandleSize / 2, x + w / 2 + HandleSize / 2, y + HandleSize / 2); // top
@@ -439,8 +395,8 @@ public abstract class PageElement : IPageElement
         if (!CanContainChildren)
             return Enumerable.Empty<IPageElement>();
 
-        return _children.Where(e => x >= e.X && x <= e.X + e.Width &&
-                                    y >= e.Y && y <= e.Y + e.Height);
+        return _children.Where(e => x >= e.X.Value && x <= e.X.Value + e.Width.Value &&
+                                    y >= e.Y.Value && y <= e.Y.Value + e.Height.Value);
     }
 
     /// <summary>

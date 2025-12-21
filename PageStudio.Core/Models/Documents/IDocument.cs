@@ -1,3 +1,4 @@
+using PageStudio.Core.Features.ParametricProperties;
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models.Page;
 using PageStudio.Core.Services;
@@ -10,6 +11,10 @@ namespace PageStudio.Core.Models.Documents;
 /// </summary>
 public interface IDocument
 {
+    /// <summary>
+    /// Parametric engine for the document
+    /// </summary>
+    ParametricEngine ParametricEngine { get; }
     /// <summary>
     /// Unique identifier for the document
     /// </summary>
