@@ -31,14 +31,14 @@ public interface IPageElement
     bool HideFromDocumentStructure { get; set; }
 
     // Parametric properties
-    DynamicProperty<double> X { get; }
-    DynamicProperty<double> Y { get; }
-    DynamicProperty<double> Width { get; }
-    DynamicProperty<double> Height { get; }
-    DynamicProperty<double> Rotation { get; }
-    DynamicProperty<double> Opacity { get; }
-    DynamicProperty<bool> IsVisible { get; }
-    DynamicProperty<bool> IsLocked { get; }
+    DynamicProperty<double> X { get; set; }
+    DynamicProperty<double> Y { get; set; }
+    DynamicProperty<double> Width { get; set; }
+    DynamicProperty<double> Height { get; set; }
+    DynamicProperty<double> Rotation { get; set; }
+    DynamicProperty<double> Opacity { get; set; }
+    DynamicProperty<bool> IsVisible { get; set; }
+    DynamicProperty<bool> IsLocked { get; set; }
 
     /// <summary>
     /// Indicates whether the aspect ratio of the element should remain constant when resizing.

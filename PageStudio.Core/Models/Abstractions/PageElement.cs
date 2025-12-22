@@ -16,14 +16,14 @@ public abstract class PageElement : IPageElement
     private readonly IEventPublisher _eventPublisher;
     
     // Parametric properties
-    public DynamicProperty<double> X { get; }
-    public DynamicProperty<double> Y { get; }
-    public DynamicProperty<double> Width { get; }
-    public DynamicProperty<double> Height { get; }
-    public DynamicProperty<double> Rotation { get; }
-    public DynamicProperty<double> Opacity { get; }
-    public DynamicProperty<bool> IsVisible { get; }
-    public DynamicProperty<bool> IsLocked { get; }
+    public DynamicProperty<double> X { get; set; }
+    public DynamicProperty<double> Y { get; set; }
+    public DynamicProperty<double> Width { get; set; }
+    public DynamicProperty<double> Height { get; set; }
+    public DynamicProperty<double> Rotation { get; set; }
+    public DynamicProperty<double> Opacity { get; set; }
+    public DynamicProperty<bool> IsVisible { get; set; }
+    public DynamicProperty<bool> IsLocked { get; set; }
 
     /// <summary>
     /// Unique identifier for the element

@@ -58,7 +58,9 @@ public class DynamicProperty<T> : IDynamicProperty
         set => Formula = new JsFormula(value);
     }
 
-    public bool IsConstant => _formula.Dependencies.Count == 0;
+    public bool IsConstant => _formula.Dependencies.Count == 0 && !_formula.IsExplicitFormula;
+
+    public bool IsExplicitFormula => _formula.IsExplicitFormula;
 
     public object? GetValue() => GetValueT();
 

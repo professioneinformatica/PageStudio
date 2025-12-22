@@ -9,9 +9,12 @@ public class JsFormula
     public Script Ast { get; }
     public IReadOnlyList<PropertyDependency> Dependencies { get; }
 
-    public JsFormula(string expression)
+    public bool IsExplicitFormula { get; }
+
+    public JsFormula(string expression, bool isExplicitFormula = true)
     {
         Expression = expression;
+        IsExplicitFormula = isExplicitFormula;
         
         var parser = new JavaScriptParser();
         try 
@@ -37,6 +40,6 @@ public class JsFormula
             null => "null",
             _ => value.ToString() ?? "undefined"
         };
-        return new JsFormula(valStr);
+        return new JsFormula(valStr, false);
     }
 }
