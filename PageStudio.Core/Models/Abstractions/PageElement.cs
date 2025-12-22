@@ -41,6 +41,10 @@ public abstract class PageElement : IPageElement
         {
             if (_name != value)
             {
+                if (!Page.Document.ParametricEngine.Symbols.IsSymbolNameAvailable(value, Id))
+                {
+                    throw new InvalidOperationException($"The name '{value}' is already in use by another element.");
+                }
                 Page.Document.ParametricEngine.RegisterElement(value, Id);
                 _name = value;
             }

@@ -24,8 +24,14 @@ else
         <div class="card-body properties-body tab-content">
             <div class="@GetPaneClass("general")" id="general">
                 <div class="mb-3">
-                    <p><strong>Name:</strong> @SelectedElement.Name</p>
-                    <p><strong>Type:</strong> @SelectedElement.GetType().Name</p>
+                    <label class="form-label"><strong>Name:</strong></label>
+                    <input type="text" class="form-control form-control-sm @(_nameError != null ? "is-invalid" : "")" 
+                           value="@_elementName" @onchange="HandleNameChange" />
+                    @if (_nameError != null)
+                    {
+                        <div class="invalid-feedback">@_nameError</div>
+                    }
+                    <p class="mt-2"><strong>Type:</strong> @SelectedElement.GetType().Name</p>
                 </div>
                 <div class="mb-3">
                     <h6>Position & Size</h6>

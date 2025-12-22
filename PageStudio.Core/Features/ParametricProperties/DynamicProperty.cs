@@ -21,11 +21,21 @@ public class DynamicProperty<T> : IDynamicProperty
         SymbolTable symbolTable)
     {
         Id = id;
-        _formula = formula;
         _context = context;
         _graph = graph;
         _symbolTable = symbolTable;
-        
+
+        // Validate formula on creation
+        try
+        {
+            _context.Validate(Id, formula);
+        }
+        catch (Exception ex)
+        {
+            throw new ArgumentException($"Invalid JS formula in constructor: {formula.Expression}", ex);
+        }
+
+        _formula = formula;
         UpdateGraph();
     }
 
@@ -38,6 +48,16 @@ public class DynamicProperty<T> : IDynamicProperty
             if (_graph.WouldCreateCycle(Id, newDeps))
             {
                 throw new InvalidOperationException("Assigning this formula would create a circular dependency.");
+            }
+
+            // Validate formula before assignment
+            try
+            {
+                _context.Validate(Id, value);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"Invalid JS formula execution: {value.Expression}", ex);
             }
 
             _formula = value;
