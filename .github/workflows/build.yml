@@ -40,12 +40,14 @@ jobs:
         run: |
           mkdir -p ${{ runner.temp }}/scanner
           dotnet tool update dotnet-sonarscanner --tool-path ${{ runner.temp }}/scanner
+      - name: Install dotnet-coverage
+        run: dotnet tool install --global dotnet-coverage
       - name: Build and analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           export PATH="$PATH:${{ runner.temp }}/scanner"
-          dotnet-sonarscanner begin /k:"professioneinformatica_PageStudio" /o:"professioneinformatica" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.dotnet.excludeTestProjects=true
+          dotnet-sonarscanner begin /k:"professioneinformatica_PageStudio" /o:"professioneinformatica" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.dotnet.excludeTestProjects=true /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml
           dotnet build
-          dotnet test --no-build --verbosity normal
+          dotnet-coverage collect "dotnet test --no-build --verbosity normal" -f xml -o "coverage.xml"
           dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
