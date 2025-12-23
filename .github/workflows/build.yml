@@ -47,7 +47,7 @@ jobs:
       - name: SonarQube Begin
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: dotnet-sonarscanner begin /k:"professioneinformatica_PageStudio" /o:"professioneinformatica" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.dotnet.excludeTestProjects=true /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml
+        run: dotnet-sonarscanner begin /k:"professioneinformatica_PageStudio" /o:"professioneinformatica" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.dotnet.excludeTestProjects=true /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.qualitygate.wait=true
       - name: Build
         run: dotnet build
       - name: Coverage
