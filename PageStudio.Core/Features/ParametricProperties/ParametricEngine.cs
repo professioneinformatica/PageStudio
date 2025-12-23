@@ -12,10 +12,19 @@ public class ParametricEngine
         Context = new EvaluationContext(Pool, Symbols);
     }
 
-    public DynamicProperty<T> CreateProperty<T>(Guid ownerId, string name, string initialExpression = "0")
+    public DynamicProperty<T> CreateProperty<T>(Guid ownerId, string name, T initialValue)
     {
         var id = new PropertyId(ownerId, name);
-        var formula = new JsFormula(initialExpression);
+        var formula = JsFormula.FromConstant(initialValue!);
+        var prop = new DynamicProperty<T>(id, formula, Context, Graph, Symbols);
+        Symbols.RegisterProperty(prop);
+        return prop;
+    }
+
+    public DynamicProperty<T> CreateProperty<T>(Guid ownerId, string name, string formulaExpression = "0")
+    {
+        var id = new PropertyId(ownerId, name);
+        var formula = new JsFormula(formulaExpression);
         var prop = new DynamicProperty<T>(id, formula, Context, Graph, Symbols);
         Symbols.RegisterProperty(prop);
         return prop;
