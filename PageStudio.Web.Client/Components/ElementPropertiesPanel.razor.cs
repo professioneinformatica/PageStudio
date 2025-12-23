@@ -10,6 +10,41 @@ public partial class ElementPropertiesPanel
     [Parameter] public EventCallback OnPropertyChanged { get; set; }
 
     private string _activeTab = "general";
+    private string? _elementName;
+    private string? _nameError;
+
+    protected override void OnParametersSet()
+    {
+        if (SelectedElement != null && _elementName != SelectedElement.Name)
+        {
+            _elementName = SelectedElement.Name;
+            _nameError = null;
+        }
+    }
+
+    private void HandleNameChange(ChangeEventArgs e)
+    {
+        var newName = e.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(newName))
+        {
+            _nameError = "Name cannot be empty";
+            return;
+        }
+
+        if (SelectedElement == null) return;
+
+        try
+        {
+            SelectedElement.Name = newName;
+            _elementName = newName;
+            _nameError = null;
+            OnPropertyChanged.InvokeAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _nameError = ex.Message;
+        }
+    }
 
     private void SetActiveTab(string tabName)
     {

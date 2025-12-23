@@ -1,4 +1,5 @@
 @using PageStudio.Core.Models.ContainerPageElements
+@using PageStudio.Web.Client.Components.DynamicPropertyEditor
 
 @if (SelectedElement is null)
 {
@@ -23,33 +24,35 @@ else
         <div class="card-body properties-body tab-content">
             <div class="@GetPaneClass("general")" id="general">
                 <div class="mb-3">
-                    <p><strong>Name:</strong> @SelectedElement.Name</p>
-                    <p><strong>Type:</strong> @SelectedElement.GetType().Name</p>
+                    <label class="form-label"><strong>Name:</strong></label>
+                    <input type="text" class="form-control form-control-sm @(_nameError != null ? "is-invalid" : "")" 
+                           value="@_elementName" @onchange="HandleNameChange" />
+                    @if (_nameError != null)
+                    {
+                        <div class="invalid-feedback">@_nameError</div>
+                    }
+                    <p class="mt-2"><strong>Type:</strong> @SelectedElement.GetType().Name</p>
                 </div>
                 <div class="mb-3">
                     <h6>Position & Size</h6>
                     <div class="row">
                         <div class="col-6">
                             <label class="form-label">X:</label>
-                            <input type="number" class="form-control form-control-sm"
-                                   @bind="SelectedElement.X.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                            <DynamicPropertyEditor @bind-Property="SelectedElement.X" @bind-Property:after="() => OnPropertyChanged.InvokeAsync()" />
                         </div>
                         <div class="col-6">
                             <label class="form-label">Y:</label>
-                            <input type="number" class="form-control form-control-sm"
-                                   @bind="SelectedElement.Y.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                            <DynamicPropertyEditor @bind-Property="SelectedElement.Y" @bind-Property:after="() => OnPropertyChanged.InvokeAsync()" />
                         </div>
                     </div>
                     <div class="row mt-2 align-items-end">
                         <div class="col-6">
                             <label class="form-label">Width:</label>
-                            <input type="number" class="form-control form-control-sm"
-                                   @bind="SelectedElement.Width.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                            <DynamicPropertyEditor @bind-Property="SelectedElement.Width" @bind-Property:after="() => OnPropertyChanged.InvokeAsync()" />
                         </div>
                         <div class="col-6">
                             <label class="form-label">Height:</label>
-                            <input type="number" class="form-control form-control-sm"
-                                   @bind="SelectedElement.Height.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                            <DynamicPropertyEditor @bind-Property="SelectedElement.Height" @bind-Property:after="() => OnPropertyChanged.InvokeAsync()" />
                         </div>
                     </div>
                     <div class="mt-2 d-flex align-items-center gap-2">
@@ -101,36 +104,31 @@ else
                             <label class="form-label">Opacity:</label>
                             @if (SelectedElement is not null)
                             {
-                                <input type="range" class="form-range" min="0" max="1" step="0.1"
-                                       @bind="SelectedElement.Opacity.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
-                                <small class="text-muted">@SelectedElement.Opacity.Value.ToString("F1")</small>
+                                <DynamicPropertyEditor @bind-Property="SelectedElement.Opacity" @bind-Property:after="() => OnPropertyChanged.InvokeAsync()" />
                             }
                         </div>
                         <div class="col-6">
                             <label class="form-label">Rotation:</label>
                             @if (SelectedElement is not null)
                             {
-                                <input type="number" class="form-control form-control-sm"
-                                       @bind="SelectedElement.Rotation.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                                <DynamicPropertyEditor @bind-Property="SelectedElement.Rotation" @bind-Property:after="() => OnPropertyChanged.InvokeAsync()" />
                             }
                         </div>
                     </div>
                 </div>
                 <div class="mb-3">
                     <h6>Visibility & Status</h6>
-                    <div class="form-check">
+                    <div class="form-check d-flex align-items-center gap-2">
                         @if (SelectedElement is not null)
                         {
-                            <input class="form-check-input" type="checkbox"
-                                   @bind="SelectedElement.IsVisible.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                            <DynamicPropertyEditor @bind-Property="SelectedElement.IsVisible" @bind-Property:after="() => OnPropertyChanged.InvokeAsync()" />
                         }
                         <label class="form-check-label">Visible</label>
                     </div>
-                    <div class="form-check">
+                    <div class="form-check d-flex align-items-center gap-2">
                         @if (SelectedElement is not null)
                         {
-                            <input class="form-check-input" type="checkbox"
-                                   @bind="SelectedElement.IsLocked.Value" @bind:after="OnPropertyChanged.InvokeAsync"/>
+                            <DynamicPropertyEditor @bind-Property="SelectedElement.IsLocked" @bind-Property:after="() => OnPropertyChanged.InvokeAsync()" />
                         }
                         <label class="form-check-label">Locked</label>
                     </div>

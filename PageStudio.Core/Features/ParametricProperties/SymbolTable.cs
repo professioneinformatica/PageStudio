@@ -1,15 +1,27 @@
 namespace PageStudio.Core.Features.ParametricProperties;
 
+public record SymbolEntry(Guid Id, string Name);
+
 public class SymbolTable
 {
-    private readonly Dictionary<string, Guid> _symbolToId = new();
-    private readonly Dictionary<Guid, string> _idToSymbol = new();
+    private readonly List<SymbolEntry> _symbols = new();
     private readonly Dictionary<PropertyId, IDynamicProperty> _registry = new();
 
     public void RegisterElement(string symbolName, Guid id)
     {
-        _symbolToId[symbolName] = id;
-        _idToSymbol[id] = symbolName;
+        _symbols.RemoveAll(s => s.Id == id);
+        _symbols.Add(new SymbolEntry(id, symbolName));
+    }
+
+    public bool IsSymbolNameAvailable(string symbolName, Guid excludeId)
+    {
+        var entry = _symbols.FirstOrDefault(s => s.Name == symbolName);
+        if (entry == null)
+        {
+            return true;
+        }
+
+        return entry.Id == excludeId;
     }
 
     public void RegisterProperty(IDynamicProperty property)
@@ -19,9 +31,10 @@ public class SymbolTable
 
     public IDynamicProperty? Resolve(string symbolName, string propertyName)
     {
-        if (_symbolToId.TryGetValue(symbolName, out var ownerId))
+        var entry = _symbols.FirstOrDefault(s => s.Name == symbolName);
+        if (entry != null)
         {
-            return Resolve(new PropertyId(ownerId, propertyName));
+            return Resolve(new PropertyId(entry.Id, propertyName));
         }
         return null;
     }
@@ -32,5 +45,5 @@ public class SymbolTable
         return prop;
     }
 
-    public string? GetSymbolName(Guid id) => _idToSymbol.GetValueOrDefault(id);
+    public string? GetSymbolName(Guid id) => _symbols.FirstOrDefault(s => s.Id == id)?.Name;
 }

@@ -15,35 +15,69 @@ public abstract class PageElement : IPageElement
 {
     private readonly IEventPublisher _eventPublisher;
     
-    // Parametric properties
-    public DynamicProperty<double> X { get; }
-    public DynamicProperty<double> Y { get; }
-    public DynamicProperty<double> Width { get; }
-    public DynamicProperty<double> Height { get; }
-    public DynamicProperty<double> Rotation { get; }
-    public DynamicProperty<double> Opacity { get; }
-    public DynamicProperty<bool> IsVisible { get; }
-    public DynamicProperty<bool> IsLocked { get; }
+    #region Properties
+    
+    /// <summary>
+    /// Parametric property representing the horizontal offset of the element.
+    /// </summary>
+    public DynamicProperty<double> X { get; set; }
+
+    /// <summary>
+    /// Parametric property representing the vertical offset of the element.
+    /// </summary>
+    public DynamicProperty<double> Y { get; set; }
+
+    /// <summary>
+    /// Parametric property representing the width of the element.
+    /// </summary>
+    public DynamicProperty<double> Width { get; set; }
+
+    /// <summary>
+    /// Parametric property representing the height of the element.
+    /// </summary>
+    public DynamicProperty<double> Height { get; set; }
+
+    /// <summary>
+    /// Parametric property representing the rotation angle of the element.
+    /// </summary>
+    public DynamicProperty<double> Rotation { get; set; }
+
+    /// <summary>
+    /// Parametric property representing the opacity of the element.
+    /// </summary>
+    public DynamicProperty<double> Opacity { get; set; }
+
+    /// <summary>
+    /// Parametric property indicating whether the element is visible.
+    /// </summary>
+    public DynamicProperty<bool> IsVisible { get; set; }
+
+    /// <summary>
+    /// Parametric property indicating whether the element is locked.
+    /// </summary>
+    public DynamicProperty<bool> IsLocked { get; set; }
 
     /// <summary>
     /// Unique identifier for the element
     /// </summary>
     public Guid Id { get; }
 
-    private string _name;
     /// <summary>
     /// Element name/title
     /// </summary>
     public string Name
     {
-        get => _name;
+        get;
         set
         {
-            if (_name != value)
+            if (field == value) return;
+            
+            if (!Page.Document.ParametricEngine.Symbols.IsSymbolNameAvailable(value, Id))
             {
-                Page.Document.ParametricEngine.RegisterElement(value, Id);
-                _name = value;
+                throw new InvalidOperationException($"The name '{value}' is already in use by another element.");
             }
+            Page.Document.ParametricEngine.RegisterElement(value, Id);
+            field = value;
         }
     }
 
@@ -66,9 +100,8 @@ public abstract class PageElement : IPageElement
             _eventPublisher.Publish(new ZIndexChangedMessage(this, oldZIndex));
         }
     }
-
-    public int GetChildIndex(IPageElement child) => _children.IndexOf(child);
-
+    
+    
     /// <summary>
     /// Element creation timestamp
     /// </summary>
@@ -109,6 +142,10 @@ public abstract class PageElement : IPageElement
 
     public IPage Page { get; }
 
+    #endregion
+
+    public int GetChildIndex(IPageElement child) => _children.IndexOf(child);
+    
     protected void SetDimension(double width, double height)
     {
         Width.Value = width;
@@ -126,19 +163,18 @@ public abstract class PageElement : IPageElement
         _eventPublisher = eventPublisher;
         Page = page;
         Id = Guid.CreateVersion7();
-        _name = name;
+        Name = name;
+
+        var engine = Page.Document.ParametricEngine;
         
-        var engine = page.Document.ParametricEngine;
-        engine.RegisterElement(name, Id);
-        
-        X = engine.CreateProperty<double>(Id, "X", "0");
-        Y = engine.CreateProperty<double>(Id, "Y", "0");
-        Width = engine.CreateProperty<double>(Id, "Width", "100");
-        Height = engine.CreateProperty<double>(Id, "Height", "100");
-        Rotation = engine.CreateProperty<double>(Id, "Rotation", "0");
-        Opacity = engine.CreateProperty<double>(Id, "Opacity", "1.0");
-        IsVisible = engine.CreateProperty<bool>(Id, "IsVisible", "true");
-        IsLocked = engine.CreateProperty<bool>(Id, "IsLocked", "false");
+        X = engine.CreateProperty(Id, "X", 0.0);
+        Y = engine.CreateProperty(Id, "Y", 0.0);
+        Width = engine.CreateProperty(Id, "Width", 100.0);
+        Height = engine.CreateProperty(Id, "Height", 100.0);
+        Rotation = engine.CreateProperty(Id, "Rotation", 0.0);
+        Opacity = engine.CreateProperty(Id, "Opacity", 1.0);
+        IsVisible = engine.CreateProperty(Id, "IsVisible", true);
+        IsLocked = engine.CreateProperty(Id, "IsLocked", false);
 
         CreatedAt = DateTime.UtcNow;
         ModifiedAt = DateTime.UtcNow;

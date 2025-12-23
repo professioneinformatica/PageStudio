@@ -1,3 +1,4 @@
+using System.Globalization;
 using Esprima;
 using Esprima.Ast;
 
@@ -9,9 +10,12 @@ public class JsFormula
     public Script Ast { get; }
     public IReadOnlyList<PropertyDependency> Dependencies { get; }
 
-    public JsFormula(string expression)
+    public bool IsExplicitFormula { get; }
+
+    public JsFormula(string expression, bool isExplicitFormula = true)
     {
         Expression = expression;
+        IsExplicitFormula = isExplicitFormula;
         
         var parser = new JavaScriptParser();
         try 
@@ -34,9 +38,12 @@ public class JsFormula
         {
             string s => $"\"{s}\"",
             bool b => b ? "true" : "false",
+            double d => d.ToString(CultureInfo.InvariantCulture),
+            float f => f.ToString(CultureInfo.InvariantCulture),
+            decimal m => m.ToString(CultureInfo.InvariantCulture),
             null => "null",
-            _ => value.ToString() ?? "undefined"
+            _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? "undefined"
         };
-        return new JsFormula(valStr);
+        return new JsFormula(valStr, false);
     }
 }

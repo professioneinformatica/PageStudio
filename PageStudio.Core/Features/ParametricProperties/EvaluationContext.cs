@@ -9,12 +9,24 @@ public class EvaluationContext(EnginePool pool, SymbolTable symbolTable)
 
     public object? Evaluate(IDynamicProperty property, JsFormula formula)
     {
-        if (_evaluationStack.Contains(property.Id))
+        return EvaluateInternal(property.Id, formula);
+    }
+
+    public void Validate(PropertyId id, JsFormula formula)
+    {
+        // Try to evaluate the formula in a safe way to check for runtime errors.
+        // We use a dedicated validation evaluation that doesn't affect caches.
+        EvaluateInternal(id, formula);
+    }
+
+    private object? EvaluateInternal(PropertyId id, JsFormula formula)
+    {
+        if (_evaluationStack.Contains(id))
         {
-            throw new InvalidOperationException($"Circular dependency detected at runtime for {property.Id}");
+            throw new InvalidOperationException($"Circular dependency detected at runtime for {id}");
         }
 
-        _evaluationStack.Push(property.Id);
+        _evaluationStack.Push(id);
         var engine = pool.Get();
         try
         {

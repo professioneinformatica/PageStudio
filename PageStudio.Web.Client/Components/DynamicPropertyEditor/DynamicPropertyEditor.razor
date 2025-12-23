@@ -1,0 +1,60 @@
+@using PageStudio.Core.Features.ParametricProperties
+@typeparam T
+
+<div class="dynamic-property-editor">
+    <div class="input-group input-group-sm">
+        @if (_isFormulaMode)
+        {
+            <span class="input-group-text formula-indicator" title="Formula JavaScript">
+                <i class="bi bi-braces"></i>
+            </span>
+            <input type="text" class="form-control @(_hasError ? "is-invalid" : "")" 
+                   value="@Property.FormulaExpression" 
+                   @onchange="OnFormulaChanged" 
+                   placeholder="Inserisci formula JS..." />
+        }
+        else
+        {
+            @if (typeof(T) == typeof(bool))
+            {
+                <div class="form-control d-flex align-items-center">
+                    <input type="checkbox" class="form-check-input mt-0" 
+                           checked="@((bool)(object)Property.Value!)" 
+                           @onchange="OnValueChanged" />
+                    <span class="ms-2">@Property.Value</span>
+                </div>
+            }
+            else if (typeof(T) == typeof(double) || typeof(T) == typeof(int) || typeof(T) == typeof(float))
+            {
+                <input type="number" class="form-control" 
+                       value="@Property.Value" 
+                       @onchange="OnValueChanged" 
+                       step="any" />
+            }
+            else
+            {
+                <input type="text" class="form-control" 
+                       value="@Property.Value" 
+                       @onchange="OnValueChanged" />
+            }
+        }
+
+        <button class="btn btn-outline-secondary" type="button" @onclick="ToggleMode" title="@(_isFormulaMode ? "Passa a valore costante" : "Passa a formula")">
+            <i class="bi @(_isFormulaMode ? "bi-input-cursor" : "bi-braces")"></i>
+        </button>
+    </div>
+    
+    @if (_isFormulaMode)
+    {
+        <div class="formula-preview mt-1 ms-1">
+            @if (_hasError)
+            {
+                <small class="text-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>@_errorMessage</small>
+            }
+            else
+            {
+                <small class="text-muted">Risultato: <span class="badge bg-light text-dark border">@Property.GetValue()</span></small>
+            }
+        </div>
+    }
+</div>
