@@ -40,14 +40,19 @@ jobs:
         run: |
           mkdir -p ${{ runner.temp }}/scanner
           dotnet tool update dotnet-sonarscanner --tool-path ${{ runner.temp }}/scanner
+      - name: Add scanner to PATH
+        run: echo "${{ runner.temp }}/scanner" >> $GITHUB_PATH
       - name: Install dotnet-coverage
         run: dotnet tool install --global dotnet-coverage
-      - name: Build and analyze
+      - name: SonarQube Begin
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          export PATH="$PATH:${{ runner.temp }}/scanner"
-          dotnet-sonarscanner begin /k:"professioneinformatica_PageStudio" /o:"professioneinformatica" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.dotnet.excludeTestProjects=true /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml
-          dotnet build
-          dotnet-coverage collect "dotnet test --no-build --verbosity normal" -f xml -o "coverage.xml"
-          dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        run: dotnet-sonarscanner begin /k:"professioneinformatica_PageStudio" /o:"professioneinformatica" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.dotnet.excludeTestProjects=true /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml
+      - name: Build
+        run: dotnet build
+      - name: Coverage
+        run: dotnet-coverage collect "dotnet test --no-build --verbosity normal" -f xml -o "coverage.xml"
+      - name: SonarQube End
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
