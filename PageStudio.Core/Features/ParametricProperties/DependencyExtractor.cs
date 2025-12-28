@@ -16,6 +16,15 @@ public static class DependencyExtractor
             {
                 dependencies.Add(new PropertyDependency(objId.Name, propId.Name));
             }
+            // Supporto per ID normalizzati [[guid]]:property (che in JS diventano oggetti con ID come nome)
+            else if (node is StaticMemberExpression { Object: Identifier { Name: var name }, Property: Identifier propId2 } && name.StartsWith("__id_"))
+            {
+                var guidStr = name.Substring(5).Replace("_", "-");
+                if (Guid.TryParse(guidStr, out var id))
+                {
+                    dependencies.Add(new PropertyDependency(name, propId2.Name));
+                }
+            }
         }
 
         return dependencies.Distinct().ToList();

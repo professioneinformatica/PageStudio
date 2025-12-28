@@ -1,15 +1,19 @@
+using PageStudio.Core.Models.Documents;
 namespace PageStudio.Core.Features.ParametricProperties;
 
 public class ParametricEngine
 {
     public EnginePool Pool { get; } = new();
-    public SymbolTable Symbols { get; } = new();
+    public SymbolTable Symbols { get; }
     public DependencyGraph Graph { get; } = new();
     public EvaluationContext Context { get; }
+    public FormulaTranslator Translator { get; }
 
-    public ParametricEngine()
+    public ParametricEngine(IDocument document)
     {
+        Symbols = new SymbolTable(this);
         Context = new EvaluationContext(Pool, Symbols);
+        Translator = new FormulaTranslator(document);
     }
 
     public DynamicProperty<T> CreateProperty<T>(Guid ownerId, string name, T initialValue)

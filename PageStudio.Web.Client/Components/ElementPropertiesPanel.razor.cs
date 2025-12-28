@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
+using PageStudio.Core.Extensions;
 using PageStudio.Core.Interfaces;
 using PageStudio.Core.Models.Abstractions;
 
@@ -6,6 +8,7 @@ namespace PageStudio.Web.Client.Components;
 
 public partial class ElementPropertiesPanel
 {
+    [Inject] private IJSRuntime JSRuntime { get; set; } = null!;
     [Parameter] public IPageElement? SelectedElement { get; set; }
     [Parameter] public EventCallback OnPropertyChanged { get; set; }
 
@@ -67,6 +70,14 @@ public partial class ElementPropertiesPanel
         {
             SelectedElement.LockAspectRatio = !SelectedElement.LockAspectRatio;
             OnPropertyChanged.InvokeAsync();
+        }
+    }
+
+    private async Task CopyToClipboard()
+    {
+        if (SelectedElement != null)
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", SelectedElement.GetFQName());
         }
     }
 }

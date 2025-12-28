@@ -5,10 +5,18 @@ namespace PageStudio.Tests;
 
 public class FormulaValidationTests
 {
+    private ParametricEngine CreateEngine()
+    {
+        var doc = new MockDocument();
+        var engine = new ParametricEngine(doc);
+        doc.ParametricEngine = engine;
+        return engine;
+    }
+
     [Fact]
     public void InvalidFormula_ThrowsOnAssignment()
     {
-        var engine = new ParametricEngine();
+        var engine = CreateEngine();
         var itemAId = Guid.NewGuid();
         engine.RegisterElement("ItemA", itemAId);
         var prop = engine.CreateProperty<double>(itemAId, "Width", "100");
@@ -28,7 +36,7 @@ public class FormulaValidationTests
     [Fact]
     public void InvalidFormulaInConstructor_Throws()
     {
-        var engine = new ParametricEngine();
+        var engine = CreateEngine();
         var itemAId = Guid.NewGuid();
         engine.RegisterElement("ItemA", itemAId);
 

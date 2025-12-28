@@ -9,7 +9,7 @@
                 <i class="bi bi-braces"></i>
             </span>
             <input type="text" class="form-control @(_hasError ? "is-invalid" : "")" 
-                   value="@Property.FormulaExpression" 
+                   value="@DisplayFormula" 
                    @onchange="OnFormulaChanged" 
                    placeholder="Inserisci formula JS..." />
         }
