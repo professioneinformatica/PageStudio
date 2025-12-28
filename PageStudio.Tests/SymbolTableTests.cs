@@ -5,17 +5,27 @@ namespace PageStudio.Tests;
 
 public class SymbolTableTests
 {
+    private ParametricEngine CreateEngine()
+    {
+        var doc = new MockDocument();
+        var engine = new ParametricEngine(doc);
+        doc.ParametricEngine = engine;
+        return engine;
+    }
+
     [Fact]
     public void IsSymbolNameAvailable_ReturnsTrueForNewName()
     {
-        var table = new SymbolTable();
+        var engine = CreateEngine();
+        var table = new SymbolTable(engine);
         Assert.True(table.IsSymbolNameAvailable("NewName", Guid.CreateVersion7()));
     }
 
     [Fact]
     public void IsSymbolNameAvailable_ReturnsFalseForExistingName()
     {
-        var table = new SymbolTable();
+        var engine = CreateEngine();
+        var table = new SymbolTable(engine);
         var id = Guid.CreateVersion7();
         table.RegisterElement("Existing", id);
         
@@ -25,7 +35,8 @@ public class SymbolTableTests
     [Fact]
     public void IsSymbolNameAvailable_ReturnsTrueForCurrentNameOfSameElement()
     {
-        var table = new SymbolTable();
+        var engine = CreateEngine();
+        var table = new SymbolTable(engine);
         var id = Guid.NewGuid();
         table.RegisterElement("Existing", id);
         
@@ -35,7 +46,8 @@ public class SymbolTableTests
     [Fact]
     public void RegisterElement_UpdatesMappingCorrectly()
     {
-        var table = new SymbolTable();
+        var engine = CreateEngine();
+        var table = new SymbolTable(engine);
         var id = Guid.NewGuid();
         
         table.RegisterElement("Name1", id);

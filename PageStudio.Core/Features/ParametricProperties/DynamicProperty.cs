@@ -6,7 +6,7 @@ public class DynamicProperty<T> : IDynamicProperty
 {
     private readonly EvaluationContext _context;
     private readonly DependencyGraph _graph;
-    private readonly SymbolTable _symbolTable;
+    public SymbolTable Symbols { get; }
     
     public PropertyId Id { get; }
     private JsFormula _formula;
@@ -23,7 +23,7 @@ public class DynamicProperty<T> : IDynamicProperty
         Id = id;
         _context = context;
         _graph = graph;
-        _symbolTable = symbolTable;
+        Symbols = symbolTable;
 
         // Validate formula on creation
         try
@@ -123,7 +123,7 @@ public class DynamicProperty<T> : IDynamicProperty
         if (!IsDirty)
         {
             IsDirty = true;
-            _graph.Invalidate(Id, _symbolTable);
+            _graph.Invalidate(Id, Symbols);
         }
     }
 
@@ -139,7 +139,7 @@ public class DynamicProperty<T> : IDynamicProperty
         var resolved = new List<PropertyId>();
         foreach (var dep in formula.Dependencies)
         {
-            var prop = _symbolTable.Resolve(dep.SymbolName, dep.PropertyName);
+            var prop = Symbols.Resolve(dep.SymbolName, dep.PropertyName);
             if (prop != null)
             {
                 resolved.Add(prop.Id);

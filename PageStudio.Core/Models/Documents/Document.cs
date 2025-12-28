@@ -27,7 +27,7 @@ public class Document : IDocument
 {
     private readonly IEventPublisher _eventPublisher;
 
-    public ParametricEngine ParametricEngine { get; } = new();
+    public ParametricEngine ParametricEngine { get; }
     private readonly List<IPage> _pages;
 
     public CanvasDocumentInteractor CanvasInteractor { get; set; }
@@ -88,6 +88,7 @@ public class Document : IDocument
     public Document(IEventPublisher eventPublisher, string name = "New Document")
     {
         _eventPublisher = eventPublisher;
+        ParametricEngine = new ParametricEngine(this);
         Id = Guid.CreateVersion7();
         Name = name;
         _pages = new List<IPage>();

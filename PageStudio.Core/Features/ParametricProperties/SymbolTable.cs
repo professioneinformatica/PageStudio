@@ -2,8 +2,9 @@ namespace PageStudio.Core.Features.ParametricProperties;
 
 public record SymbolEntry(Guid Id, string Name);
 
-public class SymbolTable
+public class SymbolTable(ParametricEngine engine)
 {
+    public ParametricEngine Engine => engine;
     private readonly List<SymbolEntry> _symbols = new();
     private readonly Dictionary<PropertyId, IDynamicProperty> _registry = new();
 
@@ -31,6 +32,15 @@ public class SymbolTable
 
     public IDynamicProperty? Resolve(string symbolName, string propertyName)
     {
+        if (symbolName.StartsWith("__id_"))
+        {
+            var guidStr = symbolName.Substring(5).Replace("_", "-");
+            if (Guid.TryParse(guidStr, out var id))
+            {
+                return Resolve(new PropertyId(id, propertyName));
+            }
+        }
+
         var entry = _symbols.FirstOrDefault(s => s.Name == symbolName);
         if (entry != null)
         {

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using PageStudio.Core.Features.ParametricProperties;
+using PageStudio.Core.Models.Abstractions;
 
 namespace PageStudio.Web.Client.Components.DynamicPropertyEditor;
 
@@ -8,6 +9,8 @@ public partial class DynamicPropertyEditor<T> : ComponentBase
     [Parameter] public DynamicProperty<T> Property { get; set; } = null!;
     
     [Parameter] public EventCallback<DynamicProperty<T>> PropertyChanged { get; set; }
+
+    private string DisplayFormula => Property.Symbols.Engine.Translator.Denormalize(Property.FormulaExpression);
 
     private bool _isFormulaMode;
     private bool _hasError;
@@ -60,7 +63,8 @@ public partial class DynamicPropertyEditor<T> : ComponentBase
         var expression = e.Value?.ToString() ?? string.Empty;
         try
         {
-            Property.FormulaExpression = expression;
+            var normalizedExpression = Property.Symbols.Engine.Translator.Normalize(expression);
+            Property.FormulaExpression = normalizedExpression;
             _hasError = false;
             _errorMessage = null;
             await PropertyChanged.InvokeAsync(Property);

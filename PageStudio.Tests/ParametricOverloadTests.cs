@@ -5,10 +5,18 @@ namespace PageStudio.Tests;
 
 public class ParametricOverloadTests
 {
+    private ParametricEngine CreateEngine()
+    {
+        var doc = new MockDocument();
+        var engine = new ParametricEngine(doc);
+        doc.ParametricEngine = engine;
+        return engine;
+    }
+
     [Fact]
     public void CreateProperty_WithTypedValue_WorksCorrectly()
     {
-        var engine = new ParametricEngine();
+        var engine = CreateEngine();
         var ownerId = Guid.NewGuid();
         
         // Use typed double
@@ -22,7 +30,7 @@ public class ParametricOverloadTests
     [Fact]
     public void CreateProperty_WithTypedBool_WorksCorrectly()
     {
-        var engine = new ParametricEngine();
+        var engine = CreateEngine();
         var ownerId = Guid.NewGuid();
         
         // Use typed bool
@@ -36,7 +44,7 @@ public class ParametricOverloadTests
     [Fact]
     public void CreateProperty_WithFormulaString_WorksAsBefore()
     {
-        var engine = new ParametricEngine();
+        var engine = CreateEngine();
         var ownerId = Guid.NewGuid();
         
         // Use string formula
@@ -50,7 +58,7 @@ public class ParametricOverloadTests
     [Fact]
     public void CreateProperty_WithStringValue_CanBeDisambiguated()
     {
-        var engine = new ParametricEngine();
+        var engine = CreateEngine();
         var ownerId = Guid.NewGuid();
         
         // To use a string as a constant value instead of a formula when T is string:

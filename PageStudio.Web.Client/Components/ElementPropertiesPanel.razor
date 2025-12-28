@@ -1,5 +1,6 @@
 @using PageStudio.Core.Models.ContainerPageElements
 @using PageStudio.Web.Client.Components.DynamicPropertyEditor
+@using PageStudio.Core.Extensions
 
 @if (SelectedElement is null)
 {
@@ -24,6 +25,15 @@ else
         <div class="card-body properties-body tab-content">
             <div class="@GetPaneClass("general")" id="general">
                 <div class="mb-3">
+                    <label class="form-label"><strong>Reference Path (ReadOnly):</strong></label>
+                    <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                        <input type="text" class="form-control bg-light" value="@SelectedElement.GetFQName()" readonly />
+                        <button class="btn btn-outline-secondary" type="button" @onclick="CopyToClipboard" title="Copia negli appunti">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                    
                     <label class="form-label"><strong>Name:</strong></label>
                     <input type="text" class="form-control form-control-sm @(_nameError != null ? "is-invalid" : "")" 
                            value="@_elementName" @onchange="HandleNameChange" />
